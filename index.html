@@ -373,6 +373,24 @@
   }
   footer a:hover { color: var(--accent); }
 
+  .back-to-master {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #888;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+    margin-bottom: 8px;
+  }
+  .back-to-master:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+  }
+
+
   /* ─── RESPONSIVE ─── */
   @media (max-width: 900px) {
     .grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -442,6 +460,7 @@
 <div class="container">
 
   <!-- HEADER -->
+  <a href="https://underhypeai.github.io/master-dashboard/" class="back-to-master">← Portfolio Dashboard</a>
   <header class="header">
     <div class="header-inner">
       <div class="brand">
@@ -576,6 +595,7 @@
 </div>
 
 <footer>
+  <a href="https://underhypeai.github.io/master-dashboard/" style="margin-right: 1rem;">← Portfolio Dashboard</a>
   <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
 </footer>
 
