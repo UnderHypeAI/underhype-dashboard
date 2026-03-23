@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+   ______                            __
+  / ____/___  ____ ___  ____  __  __/ /____  _____
+ / /   / __ \/ __ `__ \/ __ \/ / / / __/ _ \/ ___/
+/ /___/ /_/ / / / / / / /_/ / /_/ / /_/  __/ /
+\____/\____/_/ /_/ /_/ .___/\__,_/\__/\___/_/
+                    /_/
+        Created with Perplexity Computer
+        https://www.perplexity.ai/computer
+-->
+
+<!-- Perplexity Computer Attribution — SEO Meta Tags -->
+<meta name="generator" content="Perplexity Computer">
+<meta name="author" content="Perplexity Computer">
+<meta property="og:see_also" content="https://www.perplexity.ai/computer">
+<link rel="author" href="https://www.perplexity.ai/computer">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UnderHype AI — Services Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0e0c;
+    --card: #1a1918;
+    --card-border: #2a2826;
+    --accent: #C4652A;
+    --accent-light: #d9854e;
+    --accent-glow: rgba(196, 101, 42, 0.12);
+    --text-primary: #e8e4df;
+    --text-secondary: #9a9590;
+    --text-muted: #6b6560;
+    --text-dim: #4a4540;
+    --success: #4ade80;
+    --warning: #facc15;
+    --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: 32px;
+  }
+  .header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .brand h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .brand h1 span { color: var(--accent); }
+  .brand .subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .sync-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-align: right;
+  }
+  .sync-info .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ─── SECTION TITLES ─── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  /* ─── GRID ─── */
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  /* ─── KPI CARDS ─── */
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover {
+    border-color: var(--accent);
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .kpi-card:hover::before { opacity: 1; }
+  .kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  .kpi-value {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .kpi-value.currency::before {
+    content: '$';
+    font-size: 20px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 2px;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  /* ─── CHART CARDS ─── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  /* ─── FUNNEL ─── */
+  .funnel-bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .funnel-label {
+    width: 160px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+    padding-right: 14px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .funnel-track {
+    flex: 1;
+    height: 28px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .funnel-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+  }
+  .funnel-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  /* ─── MINI TABLE ─── */
+  .mini-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .mini-table th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 0 12px 10px 0;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .mini-table td {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 10px 12px 10px 0;
+    border-bottom: 1px solid rgba(42, 40, 38, 0.5);
+    vertical-align: middle;
+  }
+  .mini-table tr:last-child td {
+    border-bottom: none;
+  }
+  .mini-table .name {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .mini-table .mono {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* ─── PLACEHOLDER CARDS ─── */
+  .placeholder-card {
+    background: var(--card);
+    border: 1px dashed var(--card-border);
+    border-radius: var(--radius);
+    padding: 32px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+  }
+  .placeholder-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(196, 101, 42, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .placeholder-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: var(--accent);
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .placeholder-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .placeholder-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 280px;
+    line-height: 1.6;
+  }
+
+  /* ─── REVENUE CARD ─── */
+  .revenue-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+  .revenue-item { text-align: center; }
+  .revenue-item .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .revenue-item .value {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .revenue-item .value.accent { color: var(--accent); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    text-align: center;
+    padding: 40px 0 32px;
+    border-top: 1px solid var(--card-border);
+    margin-top: 24px;
+  }
+  footer a {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  footer a:hover { color: var(--accent); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .revenue-grid { grid-template-columns: 1fr; gap: 16px; }
+  }
+  @media (max-width: 560px) {
+    .grid-4 { grid-template-columns: 1fr; }
+    .header-inner { flex-direction: column; align-items: flex-start; }
+    .sync-info { text-align: left; }
+    .kpi-value { font-size: 26px; }
+    .funnel-label { width: 110px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <h1>Under<span>Hype</span></h1>
+        <div class="subtitle">AI Services Dashboard</div>
+      </div>
+      <div class="sync-info">
+        <span class="dot"></span>
+        <span id="sync-time">Loading&hellip;</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 1. KPI CARDS -->
+  <div class="section-title">Key Metrics</div>
+  <div class="grid-4">
+    <div class="kpi-card">
+      <div class="kpi-label">Assessments Completed</div>
+      <div class="kpi-value" id="kpi-assessments">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Active Clients</div>
+      <div class="kpi-value" id="kpi-active">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Monthly Recurring Revenue</div>
+      <div class="kpi-value currency" id="kpi-mrr">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Pipeline Value</div>
+      <div class="kpi-value currency" id="kpi-pipeline">—</div>
+    </div>
+  </div>
+
+  <!-- 2. PIPELINE FUNNEL -->
+  <div class="section-title">Pipeline Funnel</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Deals by Stage</div>
+    <div id="funnel-container"></div>
+  </div>
+
+  <!-- 3. ENGAGEMENT MODEL + 6. LEAD SOURCES -->
+  <div class="grid-2">
+    <div>
+      <div class="section-title">Client Engagement</div>
+      <div class="card">
+        <div class="card-title">Active Clients by Engagement Model</div>
+        <div class="chart-wrap" style="max-width: 280px; margin: 0 auto;">
+          <canvas id="chart-engagement"></canvas>
+        </div>
+        <div id="engagement-legend" style="margin-top: 16px;"></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Lead Sources</div>
+      <div class="card">
+        <div class="card-title">Pipeline Lead Distribution</div>
+        <div class="chart-wrap" style="max-width: 280px; margin: 0 auto;">
+          <canvas id="chart-leads"></canvas>
+        </div>
+        <div id="leads-legend" style="margin-top: 16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. NEW CLIENTS THIS MONTH -->
+  <div class="section-title">New Clients This Month</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div id="new-clients-table"></div>
+  </div>
+
+  <!-- 5. REVENUE OVERVIEW -->
+  <div class="section-title">Revenue Overview</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="revenue-grid">
+      <div class="revenue-item">
+        <div class="label">Project Revenue</div>
+        <div class="value accent" id="rev-project">—</div>
+      </div>
+      <div class="revenue-item">
+        <div class="label">Monthly MRR</div>
+        <div class="value accent" id="rev-mrr">—</div>
+      </div>
+      <div class="revenue-item">
+        <div class="label">Combined Revenue</div>
+        <div class="value accent" id="rev-combined">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLACEHOLDERS ROW -->
+  <div class="grid-2">
+    <!-- 7. RETENTION PLACEHOLDER -->
+    <div class="placeholder-card">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="placeholder-title">Awaiting Retention Tracking Setup</div>
+      <div class="placeholder-desc">Monthly retention rate, churn, and average client lifetime will appear here.</div>
+    </div>
+
+    <!-- 8. CSAT PLACEHOLDER -->
+    <div class="placeholder-card">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div class="placeholder-title">Awaiting CSAT System Setup</div>
+      <div class="placeholder-desc">CSAT score, NPS, and recent client feedback will appear here.</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top: 16px;">
+    <!-- 9. WEBSITE TRAFFIC PLACEHOLDER -->
+    <div class="placeholder-card">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="placeholder-title">Awaiting GA4 Connection</div>
+      <div class="placeholder-desc">Sessions, users, pageviews, and top pages will appear here once Google Analytics is connected.</div>
+    </div>
+
+    <!-- 10. FINANCIAL OVERVIEW PLACEHOLDER -->
+    <div class="placeholder-card">
+      <div class="placeholder-icon">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="placeholder-title">Awaiting Mercury + QuickBooks Connection</div>
+      <div class="placeholder-desc">Account balance, P&amp;L summary, and cash flow will appear here.</div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
+</footer>
+
+<script>
+(async function() {
+  /* ─── HELPERS ─── */
+  const fmt = (n) => n.toLocaleString('en-US');
+  const fmtCurrency = (n) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+  const ACCENT = '#C4652A';
+  const ACCENT_LIGHT = '#d9854e';
+
+  const FUNNEL_COLORS = [
+    '#d9854e', // Lead — lightest
+    '#c4652a', // Outreach
+    '#b35a24', // Interested
+    '#a24f1f', // Consultation Scheduled
+    '#91441a', // Proposal Sent
+    '#803a16', // Pilot
+    '#6e3012', // Active - Building
+    '#5d260e', // Active - Support
+    '#3d3835', // Paused — neutral
+    '#2a2826', // Closed — darkest
+  ];
+
+  const ENGAGEMENT_COLORS = ['#C4652A', '#4ade80', '#a78bfa'];
+  const LEAD_COLORS = ['#C4652A', '#d9854e', '#e8a87c', '#4ade80', '#facc15', '#a78bfa', '#6b6560'];
+
+  /* ─── LOAD DATA ─── */
+  let data;
+  try {
+    const resp = await fetch('data.json');
+    data = await resp.json();
+  } catch(e) {
+    console.error('Failed to load data.json:', e);
+    document.querySelector('.container').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#9a9590;"><h2>Dashboard Offline</h2><p>Could not load data.json. Run the sync script first.</p></div>';
+    return;
+  }
+
+  const meta = data._meta || {};
+  const pipeline = data.pipeline || {};
+  const kpis = pipeline.kpis || {};
+  const funnel = pipeline.funnel || {};
+  const engagementModels = pipeline.engagement_models || {};
+  const leadSources = pipeline.lead_sources || {};
+  const newClients = pipeline.new_clients_this_month || [];
+  const activeClients = pipeline.active_clients || [];
+
+  /* ─── SYNC TIME ─── */
+  if (meta.last_synced) {
+    const d = new Date(meta.last_synced);
+    document.getElementById('sync-time').textContent = 'Synced ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* ─── KPIs ─── */
+  document.getElementById('kpi-assessments').textContent = fmt(kpis.total_assessments || 0);
+  document.getElementById('kpi-active').textContent = fmt(kpis.active_clients || 0);
+  document.getElementById('kpi-mrr').textContent = fmtCurrency(kpis.total_mrr || 0);
+  document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
+
+  /* ─── PIPELINE FUNNEL ─── */
+  const funnelContainer = document.getElementById('funnel-container');
+  const stages = [
+    'Lead', 'Outreach', 'Interested', 'Consultation Scheduled',
+    'Proposal Sent', 'Pilot', 'Active - Building', 'Active - Support',
+    'Paused', 'Closed'
+  ];
+  const maxCount = Math.max(...stages.map(s => funnel[s] || 0), 1);
+
+  stages.forEach((stage, i) => {
+    const count = funnel[stage] || 0;
+    const pct = count > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
+    const row = document.createElement('div');
+    row.className = 'funnel-bar-row';
+    row.innerHTML = `
+      <div class="funnel-label">${stage}</div>
+      <div class="funnel-track">
+        <div class="funnel-fill" style="width: ${pct}%; background: ${FUNNEL_COLORS[i]};">
+          ${count > 0 ? `<span class="funnel-count">${count}</span>` : ''}
+        </div>
+      </div>
+    `;
+    funnelContainer.appendChild(row);
+  });
+
+  /* ─── ENGAGEMENT MODEL DONUT ─── */
+  const engLabels = Object.keys(engagementModels);
+  const engCounts = engLabels.map(k => engagementModels[k].count || 0);
+  const engMRRs = engLabels.map(k => engagementModels[k].mrr || 0);
+  const totalEngCount = engCounts.reduce((a, b) => a + b, 0);
+
+  const engCtx = document.getElementById('chart-engagement').getContext('2d');
+  if (totalEngCount > 0) {
+    new Chart(engCtx, {
+      type: 'doughnut',
+      data: {
+        labels: engLabels,
+        datasets: [{
+          data: engCounts,
+          backgroundColor: ENGAGEMENT_COLORS.slice(0, engLabels.length),
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const i = ctx.dataIndex;
+                return `${ctx.label}: ${engCounts[i]} clients · $${fmtCurrency(engMRRs[i])}/mo`;
+              }
+            },
+            backgroundColor: '#1a1918',
+            borderColor: '#2a2826',
+            borderWidth: 1,
+            titleColor: '#e8e4df',
+            bodyColor: '#9a9590',
+            padding: 12,
+          }
+        }
+      }
+    });
+    // Legend
+    const legendEl = document.getElementById('engagement-legend');
+    engLabels.forEach((label, i) => {
+      legendEl.innerHTML += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="width:10px;height:10px;border-radius:2px;background:${ENGAGEMENT_COLORS[i]};flex-shrink:0;"></span>
+        <span style="font-size:12px;color:var(--text-secondary);">${label}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-left:auto;">${engCounts[i]} · $${fmtCurrency(engMRRs[i])}/mo</span>
+      </div>`;
+    });
+  } else {
+    document.getElementById('chart-engagement').parentElement.innerHTML = '<div class="empty-state">No active clients yet.<br>Engagement model distribution will appear as clients become active.</div>';
+  }
+
+  /* ─── LEAD SOURCES DONUT ─── */
+  const leadLabels = Object.keys(leadSources).filter(k => leadSources[k] > 0);
+  const leadCounts = leadLabels.map(k => leadSources[k]);
+  const totalLeads = leadCounts.reduce((a, b) => a + b, 0);
+
+  const leadCtx = document.getElementById('chart-leads').getContext('2d');
+  if (totalLeads > 0) {
+    new Chart(leadCtx, {
+      type: 'doughnut',
+      data: {
+        labels: leadLabels,
+        datasets: [{
+          data: leadCounts,
+          backgroundColor: LEAD_COLORS.slice(0, leadLabels.length),
+          borderWidth: 0,
+          hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1918',
+            borderColor: '#2a2826',
+            borderWidth: 1,
+            titleColor: '#e8e4df',
+            bodyColor: '#9a9590',
+            padding: 12,
+          }
+        }
+      }
+    });
+    const leadsLegend = document.getElementById('leads-legend');
+    leadLabels.forEach((label, i) => {
+      const pct = ((leadCounts[i] / totalLeads) * 100).toFixed(0);
+      leadsLegend.innerHTML += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="width:10px;height:10px;border-radius:2px;background:${LEAD_COLORS[i]};flex-shrink:0;"></span>
+        <span style="font-size:12px;color:var(--text-secondary);">${label}</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-left:auto;">${leadCounts[i]} (${pct}%)</span>
+      </div>`;
+    });
+  } else {
+    document.getElementById('chart-leads').parentElement.innerHTML = '<div class="empty-state">No lead source data yet.</div>';
+  }
+
+  /* ─── NEW CLIENTS THIS MONTH ─── */
+  const newClientsEl = document.getElementById('new-clients-table');
+  if (newClients.length > 0) {
+    let html = '<table class="mini-table"><thead><tr><th>Contact</th><th>Business</th><th>Model</th><th>MRR</th></tr></thead><tbody>';
+    newClients.forEach(c => {
+      html += `<tr>
+        <td class="name">${c.contact}</td>
+        <td>${c.business || '—'}</td>
+        <td>${c.engagement_model || '—'}</td>
+        <td class="mono">$${fmtCurrency(c.mrr || 0)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    newClientsEl.innerHTML = html;
+  } else {
+    newClientsEl.innerHTML = '<div class="empty-state">No new active clients this month yet.</div>';
+  }
+
+  /* ─── REVENUE OVERVIEW ─── */
+  const projectRev = kpis.total_project_revenue || 0;
+  const mrr = kpis.total_mrr || 0;
+  document.getElementById('rev-project').textContent = '$' + fmtCurrency(projectRev);
+  document.getElementById('rev-mrr').textContent = '$' + fmtCurrency(mrr) + '/mo';
+  document.getElementById('rev-combined').textContent = '$' + fmtCurrency(projectRev + mrr);
+
+})();
+</script>
+</body>
+</html>
