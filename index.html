@@ -489,24 +489,42 @@
   </header>
 
   <!-- 1. KPI CARDS -->
-  <div class="section-title">Key Metrics</div>
+  <div class="section-title">Where The Business Actually Is</div>
   <div class="grid-4">
     <div class="kpi-card">
-      <div class="kpi-label">Assessments Completed</div>
-      <div class="kpi-value" id="kpi-assessments">—</div>
+      <div class="kpi-label">Paying Clients</div>
+      <div class="kpi-value" id="kpi-paying">—</div>
+      <div class="kpi-sub" id="kpi-paying-sub">&nbsp;</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Active Clients</div>
-      <div class="kpi-value" id="kpi-active">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Monthly Recurring Revenue</div>
+      <div class="kpi-label">Real MRR</div>
       <div class="kpi-value currency" id="kpi-mrr">—</div>
+      <div class="kpi-sub" id="kpi-mrr-sub">&nbsp;</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Pipeline Value</div>
-      <div class="kpi-value currency" id="kpi-pipeline">—</div>
+      <div class="kpi-label">Active Engagements</div>
+      <div class="kpi-value" id="kpi-active">—</div>
+      <div class="kpi-sub" id="kpi-active-sub">&nbsp;</div>
     </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Open Forecast</div>
+      <div class="kpi-value currency" id="kpi-pipeline">—</div>
+      <div class="kpi-sub">Unsigned estimate. Not revenue.</div>
+    </div>
+  </div>
+
+  <!-- 1b. NEEDS ATTENTION -->
+  <div class="section-title">Needs Attention</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Overdue and Due Within 14 Days</div>
+    <div id="followups-table"></div>
+  </div>
+
+  <!-- 1c. ACTIVE ENGAGEMENTS -->
+  <div class="section-title">Active Engagements</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Every Client Currently Being Served</div>
+    <div id="active-clients-table"></div>
   </div>
 
   <!-- 2. PIPELINE FUNNEL -->
@@ -521,7 +539,7 @@
     <div>
       <div class="section-title">Client Engagement</div>
       <div class="card">
-        <div class="card-title">Active Clients by Engagement Model</div>
+        <div class="card-title">All Records by Engagement Model</div>
         <div class="chart-wrap" style="max-width: 280px; margin: 0 auto;">
           <canvas id="chart-engagement"></canvas>
         </div>
@@ -540,15 +558,47 @@
     </div>
   </div>
 
-  <!-- 4. NEW CLIENTS THIS MONTH -->
-  <div class="section-title">New Clients This Month</div>
+  <!-- 3b. PROSPECT QUALIFICATION -->
+  <div class="section-title">Prospect Qualification</div>
   <div class="card" style="margin-bottom: 32px;">
-    <div id="new-clients-table"></div>
+    <div class="card-title">Web Presence of Everyone in the Pipeline</div>
+    <div id="web-presence-container"></div>
+  </div>
+
+  <!-- 4. PARTNERSHIPS -->
+  <div class="section-title">Partnerships</div>
+  <div class="grid-4">
+    <div class="kpi-card">
+      <div class="kpi-label">Tracked Partners</div>
+      <div class="kpi-value" id="kpi-partners">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Active Agreements</div>
+      <div class="kpi-value" id="kpi-partner-active">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">In Conversation</div>
+      <div class="kpi-value" id="kpi-partner-talking">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Clients Generated</div>
+      <div class="kpi-value" id="kpi-partner-clients">—</div>
+      <div class="kpi-sub">The only partnership number that matters.</div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Partner Stages</div>
+    <div id="partner-funnel-container"></div>
+  </div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Partner Detail</div>
+    <div id="partners-table"></div>
   </div>
 
   <!-- 5. REVENUE OVERVIEW -->
   <div class="section-title">Revenue Overview</div>
   <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Cash Only. Free Pilots And Trades Count As Zero.</div>
     <div class="revenue-grid">
       <div class="revenue-item">
         <div class="label">Project Revenue</div>
@@ -563,6 +613,7 @@
         <div class="value accent" id="rev-combined">—</div>
       </div>
     </div>
+    <div class="kpi-sub" id="rev-note" style="margin-top:20px;">&nbsp;</div>
   </div>
 
   <!-- PLACEHOLDERS ROW -->
@@ -657,6 +708,29 @@
   const leadSources = pipeline.lead_sources || {};
   const newClients = pipeline.new_clients_this_month || [];
   const activeClients = pipeline.active_clients || [];
+  const webPresence = pipeline.web_presence || {};
+  const partnerships = data.partnerships || {};
+  const partnerKpis = partnerships.kpis || {};
+  const partnerStages = partnerships.stages || {};
+  const partnerRecords = partnerships.records || [];
+  const followups = data.followups || [];
+
+  const BILLING_COLORS = {
+    'Paid': 'var(--success)',
+    'Free Pilot': 'var(--warning)',
+    'Trade': '#a78bfa',
+    'Unbilled': 'var(--accent-light)',
+    'Prospect': 'var(--text-muted)',
+    'Unset': 'var(--text-dim)'
+  };
+  const pill = (text, color) => `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:${color};border:1px solid ${color};white-space:nowrap;">${text}</span>`;
+  const prettyDate = (iso) => {
+    if (!iso) return '\u2014';
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const truncate = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
 
   /* ─── SYNC TIME ─── */
   if (meta.last_synced) {
@@ -665,10 +739,73 @@
   }
 
   /* ─── KPIs ─── */
-  document.getElementById('kpi-assessments').textContent = fmt(kpis.total_assessments || 0);
-  document.getElementById('kpi-active').textContent = fmt(kpis.active_clients || 0);
+  const paying = kpis.paying_clients || 0;
+  const activeCount = kpis.active_clients || 0;
+  const unpaidActive = kpis.unpaid_active_clients || 0;
+
+  document.getElementById('kpi-paying').textContent = fmt(paying);
+  document.getElementById('kpi-paying-sub').textContent =
+    paying === 0 ? 'No client is paying cash yet.' : 'Billing Status = Paid.';
+
   document.getElementById('kpi-mrr').textContent = fmtCurrency(kpis.total_mrr || 0);
+  document.getElementById('kpi-mrr-sub').textContent =
+    (kpis.total_mrr || 0) === 0
+      ? 'Correct, not a sync error. Nobody is billed.'
+      : 'From paying clients only.';
+
+  document.getElementById('kpi-active').textContent = fmt(activeCount);
+  document.getElementById('kpi-active-sub').textContent =
+    unpaidActive > 0
+      ? `${unpaidActive} of ${activeCount} unpaid (pilot, trade or unbilled).`
+      : 'All active engagements are billed.';
+
   document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
+
+  /* ─── NEEDS ATTENTION ─── */
+  const fuEl = document.getElementById('followups-table');
+  if (followups.length > 0) {
+    const overdueCount = followups.filter(f => f.overdue).length;
+    let html = '';
+    if (overdueCount > 0) {
+      html += `<div style="font-size:12px;color:var(--accent-light);margin-bottom:14px;">${overdueCount} item${overdueCount === 1 ? '' : 's'} past due.</div>`;
+    }
+    html += '<table class="mini-table"><thead><tr><th>Due</th><th>Who</th><th>Type</th><th>Priority</th><th>Next Step</th></tr></thead><tbody>';
+    followups.forEach(f => {
+      const dateColor = f.overdue ? 'var(--accent-light)' : 'var(--text-secondary)';
+      const prColor = f.priority === 'High' ? 'var(--accent-light)' : f.priority === 'Low' ? 'var(--text-dim)' : 'var(--text-muted)';
+      html += `<tr>
+        <td class="mono" style="color:${dateColor};white-space:nowrap;">${prettyDate(f.date)}${f.overdue ? ' \u25cf' : ''}</td>
+        <td class="name">${esc(f.name)}</td>
+        <td>${pill(f.kind, f.kind === 'Client' ? 'var(--success)' : f.kind === 'Partner' ? '#a78bfa' : 'var(--text-muted)')}</td>
+        <td style="color:${prColor};font-size:12px;">${esc(f.priority)}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${esc(truncate(f.next_step, 110))}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    fuEl.innerHTML = html;
+  } else {
+    fuEl.innerHTML = '<div class="empty-state">Nothing due in the next 14 days.</div>';
+  }
+
+  /* ─── ACTIVE ENGAGEMENTS ─── */
+  const acEl = document.getElementById('active-clients-table');
+  if (activeClients.length > 0) {
+    let html = '<table class="mini-table"><thead><tr><th>Client</th><th>Contact</th><th>Stage</th><th>Billing</th><th>MRR</th></tr></thead><tbody>';
+    activeClients.forEach(c => {
+      const bc = BILLING_COLORS[c.billing_status] || 'var(--text-muted)';
+      html += `<tr>
+        <td class="name">${c.website ? `<a href="${esc(c.website)}" target="_blank" rel="noopener" style="color:inherit;">${esc(c.name)}</a>` : esc(c.name)}</td>
+        <td>${esc(c.contact) || '\u2014'}</td>
+        <td style="font-size:12px;">${esc(c.stage)}</td>
+        <td>${pill(c.billing_status, bc)}</td>
+        <td class="mono" style="color:${(c.mrr || 0) > 0 ? 'var(--success)' : 'var(--text-dim)'};">$${fmtCurrency(c.mrr || 0)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    acEl.innerHTML = html;
+  } else {
+    acEl.innerHTML = '<div class="empty-state">No active engagements.</div>';
+  }
 
   /* ─── PIPELINE FUNNEL ─── */
   const funnelContainer = document.getElementById('funnel-container');
@@ -796,22 +933,91 @@
     document.getElementById('chart-leads').parentElement.innerHTML = '<div class="empty-state">No lead source data yet.</div>';
   }
 
-  /* ─── NEW CLIENTS THIS MONTH ─── */
-  const newClientsEl = document.getElementById('new-clients-table');
-  if (newClients.length > 0) {
-    let html = '<table class="mini-table"><thead><tr><th>Contact</th><th>Business</th><th>Model</th><th>MRR</th></tr></thead><tbody>';
-    newClients.forEach(c => {
+  /* ─── WEB PRESENCE BARS ─── */
+  const WP_ORDER = ['None', 'Social Only', 'Booking Tool Only', 'Basic Site', 'Solid Site', 'Corporate Controlled'];
+  const WP_COLORS = {
+    'None': '#C4652A',
+    'Social Only': '#d9854e',
+    'Booking Tool Only': '#e8a87c',
+    'Basic Site': '#facc15',
+    'Solid Site': '#4ade80',
+    'Corporate Controlled': '#6b6560'
+  };
+  const wpEl = document.getElementById('web-presence-container');
+  const wpKeys = WP_ORDER.filter(k => (webPresence[k] || 0) > 0);
+  if (wpKeys.length > 0) {
+    const wpMax = Math.max(...wpKeys.map(k => webPresence[k]), 1);
+    const wpTotal = wpKeys.reduce((a, k) => a + webPresence[k], 0);
+    const weak = (webPresence['None'] || 0) + (webPresence['Social Only'] || 0) + (webPresence['Booking Tool Only'] || 0);
+    let html = '';
+    wpKeys.forEach(k => {
+      const count = webPresence[k];
+      const pct = Math.max((count / wpMax) * 100, 8);
+      html += `<div class="funnel-bar-row">
+        <div class="funnel-label">${k}</div>
+        <div class="funnel-track">
+          <div class="funnel-fill" style="width:${pct}%;background:${WP_COLORS[k]};">
+            <span class="funnel-count">${count}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `<div class="kpi-sub" style="margin-top:18px;">${weak} of ${wpTotal} qualified records have no real website. That is the offer fit.</div>`;
+    wpEl.innerHTML = html;
+  } else {
+    wpEl.innerHTML = '<div class="empty-state">No records qualified for web presence yet.<br>Set the Web Presence field in Notion to populate this.</div>';
+  }
+
+  /* ─── PARTNERSHIPS ─── */
+  document.getElementById('kpi-partners').textContent = fmt(partnerKpis.total || 0);
+  document.getElementById('kpi-partner-active').textContent = fmt(partnerKpis.active_agreements || 0);
+  document.getElementById('kpi-partner-talking').textContent = fmt(partnerKpis.in_conversation || 0);
+  document.getElementById('kpi-partner-clients').textContent = fmt(partnerKpis.clients_generated || 0);
+
+  const PARTNER_STAGE_ORDER = ['Identified', 'Contacted', 'In Conversation', 'Terms Discussed', 'Agreement Active', 'Dormant', 'Declined'];
+  const PARTNER_STAGE_COLORS = ['#d9854e', '#c4652a', '#b35a24', '#a24f1f', '#4ade80', '#3d3835', '#2a2826'];
+  const pfEl = document.getElementById('partner-funnel-container');
+  const pfMax = Math.max(...PARTNER_STAGE_ORDER.map(s => partnerStages[s] || 0), 1);
+  if (Object.keys(partnerStages).length > 0) {
+    PARTNER_STAGE_ORDER.forEach((stage, i) => {
+      const count = partnerStages[stage] || 0;
+      const pct = count > 0 ? Math.max((count / pfMax) * 100, 8) : 0;
+      const row = document.createElement('div');
+      row.className = 'funnel-bar-row';
+      row.innerHTML = `
+        <div class="funnel-label">${stage}</div>
+        <div class="funnel-track">
+          <div class="funnel-fill" style="width:${pct}%;background:${PARTNER_STAGE_COLORS[i]};">
+            ${count > 0 ? `<span class="funnel-count">${count}</span>` : ''}
+          </div>
+        </div>`;
+      pfEl.appendChild(row);
+    });
+  } else {
+    pfEl.innerHTML = '<div class="empty-state">No partners tracked yet.</div>';
+  }
+
+  const ptEl = document.getElementById('partners-table');
+  if (partnerRecords.length > 0) {
+    let html = '<table class="mini-table"><thead><tr><th>Partner</th><th>Organization</th><th>Type</th><th>Stage</th><th>Clients</th><th>Next Step</th></tr></thead><tbody>';
+    partnerRecords.forEach(p => {
+      const stageColor = p.stage === 'Agreement Active' ? 'var(--success)'
+        : ['In Conversation', 'Terms Discussed'].includes(p.stage) ? 'var(--accent-light)'
+        : ['Dormant', 'Declined'].includes(p.stage) ? 'var(--text-dim)'
+        : 'var(--text-muted)';
       html += `<tr>
-        <td class="name">${c.contact}</td>
-        <td>${c.business || '—'}</td>
-        <td>${c.engagement_model || '—'}</td>
-        <td class="mono">$${fmtCurrency(c.mrr || 0)}</td>
+        <td class="name">${esc(p.partner)}${p.channel_conflict ? ' <span style="color:var(--warning);" title="Channel conflict">&#9888;</span>' : ''}</td>
+        <td style="font-size:12px;">${esc(truncate(p.organization, 40)) || '\u2014'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${esc(p.type) || '\u2014'}</td>
+        <td>${pill(p.stage, stageColor)}</td>
+        <td class="mono" style="color:${p.clients_generated > 0 ? 'var(--success)' : 'var(--text-dim)'};">${p.clients_generated}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${esc(truncate(p.next_step, 100))}</td>
       </tr>`;
     });
     html += '</tbody></table>';
-    newClientsEl.innerHTML = html;
+    ptEl.innerHTML = html;
   } else {
-    newClientsEl.innerHTML = '<div class="empty-state">No new active clients this month yet.</div>';
+    ptEl.innerHTML = '<div class="empty-state">No partner records yet.</div>';
   }
 
   /* ─── REVENUE OVERVIEW ─── */
@@ -820,6 +1026,25 @@
   document.getElementById('rev-project').textContent = '$' + fmtCurrency(projectRev);
   document.getElementById('rev-mrr').textContent = '$' + fmtCurrency(mrr) + '/mo';
   document.getElementById('rev-combined').textContent = '$' + fmtCurrency(projectRev + mrr);
+
+  const revNote = document.getElementById('rev-note');
+  if (projectRev + mrr === 0) {
+    const notes = [];
+    Object.entries(pipeline.billing_mix || {}).forEach(([k, v]) => {
+      if (['Free Pilot', 'Trade', 'Unbilled'].includes(k)) notes.push(`${v} ${k.toLowerCase()}`);
+    });
+    revNote.textContent = notes.length
+      ? `Zero is accurate. Current engagements: ${notes.join(', ')}. Converting one of these to the $300/mo managed offer is the first dollar.`
+      : 'Zero is accurate. No client is currently billed.';
+  } else {
+    revNote.textContent = `Counts only Billing Status = Paid. Open forecast of $${fmtCurrency(kpis.pipeline_value || 0)} is deliberately excluded.`;
+  }
+
+  /* ─── SOURCE FOOTNOTE ─── */
+  if (meta.archived_records) {
+    const st = document.getElementById('sync-time');
+    st.textContent += ` \u00b7 ${meta.total_records} live records, ${meta.archived_records} archived`;
+  }
 
 })();
 </script>
