@@ -514,10 +514,10 @@
   </div>
 
   <!-- 1b. NEEDS ATTENTION -->
-  <div class="section-title">Needs Attention</div>
+  <div class="section-title">Where Things Stand</div>
   <div class="card" style="margin-bottom: 32px;">
-    <div class="card-title">Overdue and Due Within 14 Days</div>
-    <div id="followups-table"></div>
+    <div class="card-title">Open Threads, Quietest First</div>
+    <div id="open-threads-table"></div>
   </div>
 
   <!-- 1c. ACTIVE ENGAGEMENTS -->
@@ -637,17 +637,62 @@
     </div>
   </div>
 
-  <div class="grid-2" style="margin-top: 16px;">
-    <!-- 9. WEBSITE TRAFFIC PLACEHOLDER -->
+  <!-- WEBSITE TRAFFIC -->
+  <div class="section-title">Website Traffic</div>
+  <div id="traffic-unavailable" style="display:none;">
     <div class="placeholder-card">
       <div class="placeholder-icon">
         <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
-      <div class="placeholder-title">Awaiting GA4 Connection</div>
-      <div class="placeholder-desc">Sessions, users, pageviews, and top pages will appear here once Google Analytics is connected.</div>
+      <div class="placeholder-title">Traffic Data Unavailable</div>
+      <div class="placeholder-desc">The last sync could not reach Google Analytics. No numbers are shown rather than stale ones.</div>
+    </div>
+  </div>
+
+  <div id="traffic-block" style="display:none;">
+    <div class="grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Visitors</div>
+        <div class="kpi-value" id="kpi-traffic-users">—</div>
+        <div class="kpi-sub" id="kpi-traffic-users-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sessions</div>
+        <div class="kpi-value" id="kpi-traffic-sessions">—</div>
+        <div class="kpi-sub" id="kpi-traffic-sessions-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Engagement Rate</div>
+        <div class="kpi-value" id="kpi-traffic-engage">—</div>
+        <div class="kpi-sub" id="kpi-traffic-engage-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg. Time On Site</div>
+        <div class="kpi-value" id="kpi-traffic-dur">—</div>
+        <div class="kpi-sub" id="kpi-traffic-dur-sub">&nbsp;</div>
+      </div>
     </div>
 
-    <!-- 10. FINANCIAL OVERVIEW PLACEHOLDER -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" id="traffic-chart-title">Daily Visitors</div>
+      <div class="chart-wrap"><canvas id="chart-traffic"></canvas></div>
+      <div class="kpi-sub" id="traffic-chart-note" style="margin-top:16px;">&nbsp;</div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-title">Most Visited Pages</div>
+        <div id="traffic-pages-table"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">How People Arrive</div>
+        <div id="traffic-channels-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top: 16px;">
+    <!-- FINANCIAL OVERVIEW PLACEHOLDER -->
     <div class="placeholder-card">
       <div class="placeholder-icon">
         <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -713,7 +758,8 @@
   const partnerKpis = partnerships.kpis || {};
   const partnerStages = partnerships.stages || {};
   const partnerRecords = partnerships.records || [];
-  const followups = data.followups || [];
+  const openThreads = data.open_threads || [];
+  const traffic = data.traffic || null;
 
   const BILLING_COLORS = {
     'Paid': 'var(--success)',
@@ -761,30 +807,42 @@
 
   document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
 
-  /* ─── NEEDS ATTENTION ─── */
-  const fuEl = document.getElementById('followups-table');
-  if (followups.length > 0) {
-    const overdueCount = followups.filter(f => f.overdue).length;
-    let html = '';
-    if (overdueCount > 0) {
-      html += `<div style="font-size:12px;color:var(--accent-light);margin-bottom:14px;">${overdueCount} item${overdueCount === 1 ? '' : 's'} past due.</div>`;
-    }
-    html += '<table class="mini-table"><thead><tr><th>Due</th><th>Who</th><th>Type</th><th>Priority</th><th>Next Step</th></tr></thead><tbody>';
-    followups.forEach(f => {
-      const dateColor = f.overdue ? 'var(--accent-light)' : 'var(--text-secondary)';
-      const prColor = f.priority === 'High' ? 'var(--accent-light)' : f.priority === 'Low' ? 'var(--text-dim)' : 'var(--text-muted)';
+  /* ─── WHERE THINGS STAND ─── */
+  /* A recency view, not a task list. No due dates, no priorities, no nags.
+     Sorted by how long each thread has been quiet so the picture is visible
+     without the dashboard telling anyone what to do. */
+  const otEl = document.getElementById('open-threads-table');
+  if (openThreads.length > 0) {
+    const quiet = (d) => {
+      if (d === null || d === undefined) return 'not logged';
+      if (d === 0) return 'today';
+      if (d === 1) return '1 day';
+      return `${d} days`;
+    };
+    const unlogged = openThreads.filter(t => t.days_quiet === null || t.days_quiet === undefined).length;
+    let html = '<table class="mini-table"><thead><tr><th>Quiet For</th><th>Who</th><th>Type</th><th>Stage</th><th>Last Note</th></tr></thead><tbody>';
+    openThreads.forEach(t => {
+      const d = t.days_quiet;
+      const c = d === null || d === undefined ? 'var(--text-dim)'
+        : d >= 90 ? 'var(--accent-light)'
+        : d >= 30 ? 'var(--warning)'
+        : 'var(--text-secondary)';
       html += `<tr>
-        <td class="mono" style="color:${dateColor};white-space:nowrap;">${prettyDate(f.date)}${f.overdue ? ' \u25cf' : ''}</td>
-        <td class="name">${esc(f.name)}</td>
-        <td>${pill(f.kind, f.kind === 'Client' ? 'var(--success)' : f.kind === 'Partner' ? '#a78bfa' : 'var(--text-muted)')}</td>
-        <td style="color:${prColor};font-size:12px;">${esc(f.priority)}</td>
-        <td style="color:var(--text-muted);font-size:12px;">${esc(truncate(f.next_step, 110))}</td>
+        <td class="mono" style="color:${c};white-space:nowrap;">${quiet(d)}</td>
+        <td class="name">${esc(t.name)}</td>
+        <td>${pill(t.kind, t.kind === 'Client' ? 'var(--success)' : t.kind === 'Partner' ? '#a78bfa' : 'var(--text-muted)')}</td>
+        <td style="font-size:12px;">${esc(t.stage)}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${esc(truncate(t.note, 110))}</td>
       </tr>`;
     });
     html += '</tbody></table>';
-    fuEl.innerHTML = html;
+    html += `<div class="kpi-sub" style="margin-top:18px;">${openThreads.length} open threads, longest-quiet first. `
+      + `Measured from the Last Contact field only \u2014 editing a record does not count as contact, and nothing here is a deadline.`
+      + (unlogged > 0 ? ` ${unlogged} have no contact ever logged.` : '')
+      + '</div>';
+    otEl.innerHTML = html;
   } else {
-    fuEl.innerHTML = '<div class="empty-state">Nothing due in the next 14 days.</div>';
+    otEl.innerHTML = '<div class="empty-state">No open threads.</div>';
   }
 
   /* ─── ACTIVE ENGAGEMENTS ─── */
@@ -1038,6 +1096,137 @@
       : 'Zero is accurate. No client is currently billed.';
   } else {
     revNote.textContent = `Counts only Billing Status = Paid. Open forecast of $${fmtCurrency(kpis.pipeline_value || 0)} is deliberately excluded.`;
+  }
+
+  /* ─── WEBSITE TRAFFIC ─── */
+  if (!traffic) {
+    document.getElementById('traffic-unavailable').style.display = 'block';
+  } else {
+    document.getElementById('traffic-block').style.display = 'block';
+
+    const signed = (v) => v === null || v === undefined ? null : (v > 0 ? '+' : '') + v + '%';
+    const deltaColor = (v) => v === null || v === undefined ? 'var(--text-muted)'
+      : v > 0 ? 'var(--success)' : v < 0 ? 'var(--accent-light)' : 'var(--text-muted)';
+
+    document.getElementById('kpi-traffic-users').textContent = fmt(traffic.users);
+    const uSub = document.getElementById('kpi-traffic-users-sub');
+    uSub.textContent = signed(traffic.users_delta_pct)
+      ? `${signed(traffic.users_delta_pct)} vs prior ${traffic.window_days} days (${fmt(traffic.prev_users)}).`
+      : `Last ${traffic.window_days} days.`;
+    uSub.style.color = deltaColor(traffic.users_delta_pct);
+
+    document.getElementById('kpi-traffic-sessions').textContent = fmt(traffic.sessions);
+    const sSub = document.getElementById('kpi-traffic-sessions-sub');
+    sSub.textContent = signed(traffic.sessions_delta_pct)
+      ? `${signed(traffic.sessions_delta_pct)} vs prior ${traffic.window_days} days (${fmt(traffic.prev_sessions)}).`
+      : `${fmt(traffic.pageviews)} pageviews.`;
+    sSub.style.color = deltaColor(traffic.sessions_delta_pct);
+
+    document.getElementById('kpi-traffic-engage').textContent = traffic.engagement_rate + '%';
+    document.getElementById('kpi-traffic-engage-sub').textContent =
+      `${fmt(traffic.pageviews)} pageviews across ${fmt(traffic.sessions)} sessions.`;
+
+    const secs = traffic.avg_session_seconds;
+    document.getElementById('kpi-traffic-dur').textContent =
+      secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+    document.getElementById('kpi-traffic-dur-sub').textContent =
+      secs < 20 ? 'Very short. Most arrivals bounce.' : 'Average session length.';
+
+    /* daily trend */
+    document.getElementById('traffic-chart-title').textContent =
+      `Daily Visitors \u2014 ${traffic.window}`;
+    const tSeries = traffic.series || [];
+    new Chart(document.getElementById('chart-traffic'), {
+      type: 'line',
+      data: {
+        labels: tSeries.map(d => {
+          const [y, m, dd] = d.date.split('-').map(Number);
+          return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }),
+        datasets: [{
+          label: 'Visitors',
+          data: tSeries.map(d => d.users),
+          borderColor: ACCENT,
+          backgroundColor: 'rgba(196,101,42,0.14)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+          pointBackgroundColor: ACCENT_LIGHT,
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#6b6560', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#6b6560', font: { size: 10 }, precision: 0 }
+          }
+        }
+      }
+    });
+    const bd = traffic.busiest_day;
+    document.getElementById('traffic-chart-note').textContent =
+      (bd ? `Busiest day was ${prettyDate(bd.date)} with ${bd.users} visitors. ` : '') +
+      `${traffic.zero_traffic_days} of ${traffic.window_days} days had no visitors at all.`;
+
+    /* top pages */
+    const tp = traffic.top_pages || [];
+    const tpEl = document.getElementById('traffic-pages-table');
+    if (tp.length > 0) {
+      let html = '<table class="mini-table"><thead><tr><th>Page</th><th>Views</th><th>Visitors</th></tr></thead><tbody>';
+      tp.forEach(p => {
+        // Staging/proxy URLs get collapsed so one long token cannot blow out the column.
+        const label = p.path.length > 46
+          ? p.path.slice(0, 28) + '\u2026' + p.path.slice(-10)
+          : p.path;
+        html += `<tr>
+          <td class="name" style="font-family:var(--font-mono);font-size:11px;" title="${esc(p.path)}">${esc(label)}</td>
+          <td class="mono">${fmt(p.views)}</td>
+          <td class="mono" style="color:var(--text-muted);">${fmt(p.users)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      tpEl.innerHTML = html;
+    } else {
+      tpEl.innerHTML = '<div class="empty-state">No page data in this window.</div>';
+    }
+
+    /* channels */
+    const ch = traffic.channels || {};
+    const chEl = document.getElementById('traffic-channels-container');
+    const chKeys = Object.keys(ch).sort((a, b) => ch[b] - ch[a]);
+    if (chKeys.length > 0) {
+      const chMax = Math.max(...chKeys.map(k => ch[k]), 1);
+      const chTotal = chKeys.reduce((a, k) => a + ch[k], 0);
+      let html = '';
+      chKeys.forEach((k, i) => {
+        const pct = Math.max((ch[k] / chMax) * 100, 8);
+        html += `<div class="funnel-bar-row">
+          <div class="funnel-label">${esc(k)}</div>
+          <div class="funnel-track">
+            <div class="funnel-fill" style="width:${pct}%;background:${FUNNEL_COLORS[i % FUNNEL_COLORS.length]};">
+              <span class="funnel-count">${ch[k]}</span>
+            </div>
+          </div>
+        </div>`;
+      });
+      const direct = ch['Direct'] || 0;
+      html += `<div class="kpi-sub" style="margin-top:18px;">${chTotal} sessions total. ` +
+        (direct / chTotal > 0.5
+          ? `${Math.round(direct / chTotal * 100)}% is Direct, which usually means you sent them yourself rather than being found.`
+          : 'Split across channels.') + '</div>';
+      chEl.innerHTML = html;
+    } else {
+      chEl.innerHTML = '<div class="empty-state">No channel data in this window.</div>';
+    }
   }
 
   /* ─── SOURCE FOOTNOTE ─── */
