@@ -419,6 +419,161 @@
     .kpi-value { font-size: 26px; }
     .funnel-label { width: 110px; font-size: 10px; }
   }
+  /* ─── DRILL-DOWN ─── */
+  /* Anything showing an aggregate carries .drill so it is visibly clickable
+     and can be opened with a keyboard, not just a mouse. */
+  .drill {
+    cursor: pointer;
+    position: relative;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .drill:hover, .drill:focus-visible {
+    border-color: var(--accent) !important;
+    outline: none;
+  }
+  .kpi-card.drill:hover, .kpi-card.drill:focus-visible { background: #201e1c; }
+  .drill::after {
+    content: '';
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 12px; height: 12px;
+    opacity: 0;
+    transition: opacity .15s ease;
+    background: var(--accent);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 62% 100%, 62% 38%, 0 38%);
+    border-radius: 2px;
+  }
+  .drill:hover::after, .drill:focus-visible::after { opacity: .85; }
+
+  tr.drill:hover { background: #201e1c; }
+  tr.drill::after { display: none; }
+
+  .drill-row {
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .drill-row:hover, .drill-row:focus-visible { background: #201e1c; outline: none; }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 7, 6, 0.82);
+    z-index: 900;
+    display: none;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-backdrop.open { display: block; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    max-width: 940px;
+    margin: 0 auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  }
+  .modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 26px 18px;
+    border-bottom: 1px solid var(--card-border);
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    border-radius: var(--radius) var(--radius) 0 0;
+    z-index: 2;
+  }
+  .modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: .01em;
+  }
+  .modal-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 5px;
+    line-height: 1.5;
+  }
+  .modal-close {
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    width: 30px; height: 30px;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .modal-close:hover { color: var(--text-primary); border-color: var(--accent); }
+  .modal-body { padding: 20px 26px 26px; }
+
+  .rec {
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 15px 17px;
+    margin-bottom: 11px;
+    background: #161514;
+  }
+  .rec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rec-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+  .rec-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 11px 20px;
+    margin-top: 14px;
+  }
+  .rec-f-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+  }
+  .rec-f-value {
+    font-size: 12.5px;
+    color: var(--text-primary);
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .rec-note {
+    margin-top: 14px;
+    padding-top: 13px;
+    border-top: 1px solid var(--card-border);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .rec-note-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+  }
+  .rec-link {
+    display: inline-block;
+    margin-top: 13px;
+    font-size: 11.5px;
+    color: var(--accent-light);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(217,133,78,.35);
+  }
+  .rec-link:hover { border-bottom-color: var(--accent-light); }
+  .drill-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 18px;
+  }
 </style>
 </head>
 <body>
@@ -709,6 +864,19 @@
   <a href="https://www.perplexity.ai/computer" target="_blank" rel="noopener noreferrer">Created with Perplexity Computer</a>
 </footer>
 
+<!-- DRILL-DOWN MODAL -->
+<div class="modal-backdrop" id="drill-modal" role="dialog" aria-modal="true" aria-labelledby="drill-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="drill-title">Detail</div>
+        <div class="modal-sub" id="drill-sub"></div>
+      </div>
+      <button class="modal-close" id="drill-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="drill-body"></div>
+  </div>
+</div>
 <script>
 (async function() {
   /* ─── HELPERS ─── */
@@ -1234,6 +1402,442 @@
     const st = document.getElementById('sync-time');
     st.textContent += ` \u00b7 ${meta.total_records} live records, ${meta.archived_records} archived`;
   }
+
+  /* ═══════════════════════════════════════════════════════════
+     DRILL-DOWN
+     Every number on this dashboard is a count or sum over the
+     record lists in data.json. These handlers open the actual
+     rows behind a number, each deep-linked to its Notion page,
+     so no figure on the page is a dead end.
+     ═══════════════════════════════════════════════════════════ */
+
+  const records = (data.pipeline && data.pipeline.records) || [];
+  const modal = document.getElementById('drill-modal');
+  const modalBody = document.getElementById('drill-body');
+  let lastFocused = null;
+
+  function closeDrill() {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  }
+  document.getElementById('drill-close').addEventListener('click', closeDrill);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeDrill(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeDrill();
+  });
+
+  function openDrill(title, subtitle, bodyHtml) {
+    lastFocused = document.activeElement;
+    document.getElementById('drill-title').textContent = title;
+    document.getElementById('drill-sub').textContent = subtitle || '';
+    modalBody.innerHTML = bodyHtml;
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    modal.scrollTop = 0;
+    document.getElementById('drill-close').focus();
+  }
+
+  const money = (n) => '$' + fmtCurrency(n);
+  const dash = (v) => (v === null || v === undefined || v === '') ? '\u2014' : v;
+
+  function field(label, value) {
+    if (value === null || value === undefined || value === '') return '';
+    return `<div><div class="rec-f-label">${esc(label)}</div>
+            <div class="rec-f-value">${esc(String(value))}</div></div>`;
+  }
+
+  /* Full detail for one CRM record. Only fields that actually hold a value are
+     rendered, so an empty record looks empty instead of showing fake structure. */
+  function recordCard(r) {
+    const quietTxt = (r.days_quiet === null || r.days_quiet === undefined)
+      ? 'No contact ever logged'
+      : (r.days_quiet === 0 ? 'Last contact today' : `Quiet ${r.days_quiet} days`);
+
+    let f = '';
+    f += field('Contact', r.contact);
+    f += field('Stage', r.stage);
+    f += field('Billing', r.billing_status);
+    f += field('Web Presence', r.web_presence);
+    f += field('Lead Source', r.lead_source);
+    f += field('Engagement Model', r.engagement_model);
+    f += field('Industry', r.industry);
+    f += field('Location', r.location);
+    f += field('Phone', r.phone);
+    f += field('Email', r.email);
+    if (r.mrr) f += field('MRR', money(r.mrr));
+    if (r.est_value) f += field('Est. Value (forecast)', money(r.est_value));
+    if (r.project_revenue) f += field('Project Revenue', money(r.project_revenue));
+    f += field('Last Contact', r.last_contact);
+    f += field('Close Date', r.close_date);
+    if (r.website) {
+      f += `<div><div class="rec-f-label">Website</div><div class="rec-f-value">`
+        + `<a class="rec-link" style="margin-top:0;" href="${esc(r.website)}" target="_blank" rel="noopener">`
+        + `${esc(truncate(r.website.replace(/^https?:\/\//, ''), 34))}</a></div></div>`;
+    }
+
+    let html = `<div class="rec">
+      <div class="rec-head">
+        <div class="rec-name">${esc(r.name)}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${esc(quietTxt)}</div>
+      </div>
+      <div class="rec-fields">${f}</div>`;
+    if (r.next_step) {
+      html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(r.next_step)}</div>`;
+    }
+    if (r.scope) {
+      html += `<div class="rec-note"><div class="rec-note-label">Scope</div>${esc(r.scope)}</div>`;
+    }
+    if (r.notes) {
+      html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(r.notes)}</div>`;
+    }
+    if (r.url) {
+      html += `<a class="rec-link" href="${esc(r.url)}" target="_blank" rel="noopener">Open in Notion \u2192</a>`;
+    }
+    return html + '</div>';
+  }
+
+  function partnerCard(p) {
+    const quietTxt = (p.days_quiet === null || p.days_quiet === undefined)
+      ? 'No contact ever logged'
+      : (p.days_quiet === 0 ? 'Last contact today' : `Quiet ${p.days_quiet} days`);
+    let f = '';
+    f += field('Organization', p.organization);
+    f += field('Partner Type', p.type);
+    f += field('Stage', p.stage);
+    f += field('Fit Grade', p.fit);
+    f += field('Location', p.location);
+    f += field('Phone', p.phone);
+    f += field('Email', p.email);
+    f += field('Rev Share', p.rev_share);
+    f += field('Clients Generated', p.clients_generated);
+    f += field('Referrals Received', p.referrals_received);
+    f += field('Referrals Sent', p.referrals_sent);
+    f += field('Last Contact', p.last_contact);
+    if (p.channel_conflict) f += field('Channel Conflict', 'Yes');
+    let html = `<div class="rec">
+      <div class="rec-head">
+        <div class="rec-name">${esc(p.partner)}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${esc(quietTxt)}</div>
+      </div>
+      <div class="rec-fields">${f}</div>`;
+    if (p.next_step) {
+      html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(p.next_step)}</div>`;
+    }
+    if (p.notes) {
+      html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(p.notes)}</div>`;
+    }
+    if (p.url) {
+      html += `<a class="rec-link" href="${esc(p.url)}" target="_blank" rel="noopener">Open in Notion \u2192</a>`;
+    }
+    return html + '</div>';
+  }
+
+  function renderList(list, cardFn, emptyMsg, hint) {
+    if (!list.length) return `<div class="empty-state">${esc(emptyMsg)}</div>`;
+    return (hint ? `<div class="drill-hint">${esc(hint)}</div>` : '')
+      + list.map(cardFn).join('');
+  }
+
+  /* Open a set of pipeline records matching a predicate. */
+  function drillRecords(title, subtitle, predicate, hint) {
+    const matched = records.filter(predicate);
+    openDrill(title, subtitle, renderList(matched, recordCard,
+      'No records match this figure.', hint));
+  }
+
+  function drillPartners(title, subtitle, predicate, hint) {
+    const matched = partnerRecords.filter(predicate);
+    openDrill(title, subtitle, renderList(matched, partnerCard,
+      'No partnership records match this figure.', hint));
+  }
+
+  /* A row can contain a real link (a client website). A click on that link must
+     open the link, not the drill-down modal. */
+  const guarded = (fn) => (e) => {
+    if (e && e.target && e.target.closest && e.target.closest('a')) return;
+    fn();
+  };
+
+  /* Makes an element behave like a button for both mouse and keyboard. */
+  function wire(el, handler) {
+    if (!el) return;
+    el.classList.add('drill');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('role', 'button');
+    el.addEventListener('click', guarded(handler));
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+    });
+  }
+
+  const cardOf = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.closest('.kpi-card') : null;
+  };
+
+  /* ── KPI cards ── */
+  wire(cardOf('kpi-paying'), () => drillRecords(
+    'Paying Clients',
+    'Records with Billing Status = Paid. This is the only status that counts toward revenue.',
+    r => r.billing_status === 'Paid',
+    'If this is empty, the $0 MRR on the dashboard is correct rather than a sync failure.'
+  ));
+
+  wire(cardOf('kpi-mrr'), () => drillRecords(
+    'Real MRR',
+    'Monthly recurring revenue counts only records with Billing Status = Paid.',
+    r => r.billing_status === 'Paid' && r.mrr > 0,
+    'Free pilots and trade engagements are deliberately excluded, so they contribute $0.'
+  ));
+
+  wire(cardOf('kpi-active'), () => drillRecords(
+    'Active Engagements',
+    'Records in an active delivery stage, regardless of whether they are billed.',
+    r => r.is_active,
+    'Billing status is shown per record so unpaid work is visible rather than hidden.'
+  ));
+
+  wire(cardOf('kpi-pipeline'), () => drillRecords(
+    'Open Forecast',
+    'Est. Value summed across open-stage records. Unsigned estimates, not revenue.',
+    r => r.is_open && r.est_value > 0,
+    'Nothing here is committed money. A record with no Est. Value set does not appear.'
+  ));
+
+  /* ── Funnel, billing, web presence, lead sources, engagement models ── */
+  function wireBars(containerId, attr, titleFor, subFor) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    wrap.querySelectorAll('.funnel-bar-row').forEach(row => {
+      const labelEl = row.querySelector('.funnel-label');
+      if (!labelEl) return;
+      const label = labelEl.getAttribute('data-label') || labelEl.textContent.trim();
+      row.classList.add('drill-row');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('role', 'button');
+      const open = () => drillRecords(titleFor(label), subFor(label), r => r[attr] === label);
+      row.addEventListener('click', guarded(open));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  }
+
+  wireBars('funnel-container', 'stage',
+    (l) => `Stage: ${l}`,
+    (l) => `Every live record currently sitting in the ${l} stage.`);
+
+  wireBars('web-presence-container', 'web_presence',
+    (l) => `Web Presence: ${l}`,
+    (l) => `Records assessed as ${l}. This is the qualification signal for outreach.`);
+
+  /* Partner stage bars read the partnerships list, not the pipeline list. */
+  (function () {
+    const wrap = document.getElementById('partner-funnel-container');
+    if (!wrap) return;
+    wrap.querySelectorAll('.funnel-bar-row').forEach(row => {
+      const labelEl = row.querySelector('.funnel-label');
+      if (!labelEl) return;
+      const label = labelEl.textContent.trim();
+      row.classList.add('drill-row');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('role', 'button');
+      const open = () => drillPartners(`Partnership Stage: ${label}`,
+        `Partners currently in the ${label} stage.`, p => p.stage === label);
+      row.addEventListener('click', guarded(open));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  })();
+
+  /* Donut legends: each legend row is one slice, so make the row the target. */
+  function wireLegend(containerId, attr, titleFor, subFor) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    Array.from(wrap.children).forEach(row => {
+      const spans = row.querySelectorAll('span');
+      if (spans.length < 2) return;
+      const label = spans[1].textContent.trim();
+      row.classList.add('drill-row');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('role', 'button');
+      row.style.padding = '3px 6px';
+      row.style.borderRadius = '5px';
+      row.style.marginLeft = '-6px';
+      const open = () => drillRecords(titleFor(label), subFor(label), r => r[attr] === label);
+      row.addEventListener('click', guarded(open));
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  }
+
+  wireLegend('leads-legend', 'lead_source',
+    (l) => `Lead Source: ${l}`,
+    (l) => `Records that came in through ${l}.`);
+
+  wireLegend('engagement-legend', 'engagement_model',
+    (l) => `Engagement Model: ${l}`,
+    (l) => `Records set up as ${l}.`);
+
+  /* Revenue tiles: the three figures under the revenue section. */
+  (function () {
+    const revItem = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.closest('.revenue-item') : null;
+    };
+    wire(revItem('rev-mrr'), () => drillRecords(
+      'Recurring Revenue',
+      'Records with Billing Status = Paid and a monthly rate set.',
+      r => r.billing_status === 'Paid' && r.mrr > 0,
+      'Free pilots and trade engagements are excluded by design, which is why this can be $0 while work is active.'
+    ));
+    wire(revItem('rev-project'), () => drillRecords(
+      'Project Revenue',
+      'One-time project revenue actually recorded against a record.',
+      r => r.project_revenue > 0,
+      'This is collected project work, not forecast.'
+    ));
+    wire(revItem('rev-combined'), () => drillRecords(
+      'All Revenue-Bearing Records',
+      'Any record carrying recurring or project revenue.',
+      r => r.mrr > 0 || r.project_revenue > 0,
+      'If this list is empty, the zero on the dashboard is real. Billing status per record shows why.'
+    ));
+  })();
+
+  /* ── Table rows: open the single record behind the row ── */
+  function wireTableRows(containerId, list, matchFn, cardFn) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    wrap.querySelectorAll('tbody tr').forEach((tr, i) => {
+      const rec = matchFn(list[i], i);
+      if (!rec) return;
+      tr.classList.add('drill-row');
+      tr.setAttribute('tabindex', '0');
+      const open = () => openDrill(cardFn === partnerCard ? rec.partner : rec.name,
+        'Full record as it exists in Notion.', cardFn(rec));
+      tr.addEventListener('click', guarded(open));
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  }
+
+  const byId = (id) => records.find(r => r.id === id);
+
+  wireTableRows('open-threads-table', openThreads,
+    (t) => t && (byId(t.id) || null), recordCard);
+  /* Partner threads live in the same table, so fall back to the partner list. */
+  (function () {
+    const wrap = document.getElementById('open-threads-table');
+    if (!wrap) return;
+    wrap.querySelectorAll('tbody tr').forEach((tr, i) => {
+      const t = openThreads[i];
+      if (!t || t.kind !== 'Partner') return;
+      const p = partnerRecords.find(x => x.id === t.id);
+      if (!p) return;
+      tr.classList.add('drill-row');
+      tr.setAttribute('tabindex', '0');
+      const open = () => openDrill(p.partner, 'Full partnership record as it exists in Notion.', partnerCard(p));
+      tr.addEventListener('click', guarded(open));
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  })();
+
+  wireTableRows('active-clients-table', activeClients,
+    (c) => c && records.find(r => r.name === c.name), recordCard);
+
+  wireTableRows('partners-table', partnerRecords, (p) => p, partnerCard);
+
+  /* Partnership KPI cards */
+  wire(cardOf('kpi-partners'), () => drillPartners(
+    'All Partners', 'Every live record in the Partnerships database.', () => true));
+  wire(cardOf('kpi-partner-talking'), () => drillPartners(
+    'Partners In Conversation',
+    'Partners past first contact but not yet under agreement.',
+    p => ['Contacted', 'In Conversation'].includes(p.stage)));
+  wire(cardOf('kpi-partner-active'), () => drillPartners(
+    'Active Partner Agreements', 'Partners with an agreement in place.',
+    p => p.stage === 'Agreement Active'));
+  wire(cardOf('kpi-partner-clients'), () => drillPartners(
+    'Clients From Partners', 'Partners who have actually produced a client.',
+    p => (p.clients_generated || 0) > 0,
+    'A partner with zero clients generated is still a relationship, just not yet a channel.'));
+
+  /* ── Traffic: drill into the full GA4 rows behind each preview ── */
+  if (traffic) {
+    const pagesCard = document.getElementById('traffic-pages-table');
+    if (pagesCard && pagesCard.closest('.card')) {
+      wire(pagesCard.closest('.card'), () => {
+        const all = traffic.all_pages || [];
+        const ex = traffic.excluded_preview_views || 0;
+        let html = `<div class="drill-hint">Every page GA4 recorded a view for in this window.`
+          + (ex ? ` ${ex} view${ex === 1 ? '' : 's'} from internal preview URLs were excluded from this table, `
+                  + `though they are still counted in the visitor and session totals above.` : '')
+          + `</div>`;
+        html += '<table class="mini-table"><thead><tr><th>Page</th><th>Views</th><th>Visitors</th></tr></thead><tbody>';
+        all.forEach(p => {
+          html += `<tr><td class="name" style="font-family:var(--font-mono);font-size:11px;word-break:break-all;">`
+            + `${esc(p.path)}</td><td class="mono">${fmt(p.views)}</td>`
+            + `<td class="mono" style="color:var(--text-muted);">${fmt(p.users)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        openDrill('All Pages Viewed', `${all.length} pages \u00b7 ${traffic.window}`, html);
+      });
+    }
+
+    const chCard = document.getElementById('traffic-channels-container');
+    if (chCard && chCard.closest('.card')) {
+      wire(chCard.closest('.card'), () => {
+        const cities = traffic.all_cities || [];
+        const ch = traffic.channels || {};
+        let html = '<div class="drill-hint">Sessions by channel, then visitors by city. '
+          + 'Datacenter cities such as Ashburn, Boardman, and Council Bluffs usually indicate bot traffic rather than real people.</div>';
+        html += '<table class="mini-table"><thead><tr><th>Channel</th><th>Sessions</th></tr></thead><tbody>';
+        Object.keys(ch).sort((a, b) => ch[b] - ch[a]).forEach(k => {
+          html += `<tr><td class="name">${esc(k)}</td><td class="mono">${fmt(ch[k])}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        html += '<div style="height:22px;"></div>';
+        html += '<table class="mini-table"><thead><tr><th>City</th><th>Visitors</th></tr></thead><tbody>';
+        cities.forEach(c => {
+          html += `<tr><td class="name">${esc(c.city)}</td><td class="mono">${fmt(c.users)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        openDrill('Traffic Sources', `${cities.length} cities \u00b7 ${traffic.window}`, html);
+      });
+    }
+
+    const chartCard = document.getElementById('chart-traffic');
+    if (chartCard && chartCard.closest('.card')) {
+      wire(chartCard.closest('.card'), () => {
+        const s = traffic.series || [];
+        let html = '<div class="drill-hint">Day-by-day figures behind the chart. '
+          + 'Days with no traffic are shown as zero rather than omitted.</div>';
+        html += '<table class="mini-table"><thead><tr><th>Date</th><th>Visitors</th><th>Sessions</th><th>Pageviews</th></tr></thead><tbody>';
+        s.slice().reverse().forEach(d => {
+          const dim = d.users === 0 ? 'color:var(--text-dim);' : '';
+          html += `<tr><td class="mono" style="${dim}">${esc(d.date)}</td>`
+            + `<td class="mono" style="${dim}">${fmt(d.users)}</td>`
+            + `<td class="mono" style="${dim}">${fmt(d.sessions)}</td>`
+            + `<td class="mono" style="${dim}">${fmt(d.views)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        openDrill('Daily Traffic', `${s.length} days \u00b7 ${traffic.window}`, html);
+      });
+    }
+  }
+
+  /* Footnote so the feature is discoverable rather than hidden. */
+  (function () {
+    const st = document.getElementById('sync-time');
+    if (st) st.textContent += ' \u00b7 click any figure to see the records behind it';
+  })();
 
 })();
 </script>
