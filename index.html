@@ -1122,8 +1122,15 @@
       : 'All active engagements are billed.';
 
   document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
+  // Long shots stay in the forecast because the label says "every open deal",
+  // but their size is called out so the headline number is never misread.
+  var nurtureNote = (kpis.nurture_count || 0) > 0
+    ? ` Includes $${fmtCurrency(kpis.nurture_monthly || 0)} from `
+      + `${kpis.nurture_count} long-shot deal${kpis.nurture_count === 1 ? '' : 's'} in Nurture.`
+    : '';
   document.getElementById('kpi-pipeline-sub').textContent =
-    `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every open deal closed. Unsigned estimate, not revenue.`;
+    `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every open deal closed. `
+    + `Unsigned estimate, not revenue.${nurtureNote}`;
 
   /* ─── TOP LEADS ─── */
   /* Aaron's curated working set. The 10-20 range is his own target, reported
