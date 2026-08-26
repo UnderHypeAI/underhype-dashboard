@@ -119,6 +119,90 @@
     margin-bottom: 16px;
   }
 
+  /* ─── DISTINCT MODULE ─── */
+  /* Partnerships is a different motion from client work, so it gets its own
+     visually fenced module rather than sitting in the same vertical run. */
+  .module {
+    border: 1px solid var(--card-border);
+    border-top: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 32px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+  .module-head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .module-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
+  }
+  .module-tag {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent-light);
+    border: 1px solid rgba(196, 101, 42, 0.45);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+  .module-sub {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-bottom: 22px;
+    max-width: 720px;
+  }
+  .module .card,
+  .module .grid-4,
+  .module .grid-2 {
+    margin-bottom: 16px;
+  }
+  .module > *:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ─── TOP LEADS BAND ─── */
+  .band {
+    margin-top: 14px;
+  }
+  .band-track {
+    position: relative;
+    height: 8px;
+    background: #211f1d;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .band-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(74, 222, 128, 0.16);
+  }
+  .band-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+  .band-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--text-dim);
+    margin-top: 7px;
+    letter-spacing: 0.4px;
+  }
+
   /* ─── GRID ─── */
   .grid-4 {
     display: grid;
@@ -662,9 +746,56 @@
       <div class="kpi-sub" id="kpi-active-sub">&nbsp;</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Open Forecast</div>
+      <div class="kpi-label">Open Forecast / Month</div>
       <div class="kpi-value currency" id="kpi-pipeline">—</div>
-      <div class="kpi-sub">Unsigned estimate. Not revenue.</div>
+      <div class="kpi-sub" id="kpi-pipeline-sub">&nbsp;</div>
+    </div>
+  </div>
+
+  <!-- 1a. TOP LEADS -->
+  <div class="module" id="top-leads-module">
+    <div class="module-head">
+      <div class="module-title">Top Leads</div>
+      <div class="module-tag">Working Set</div>
+    </div>
+    <div class="module-sub">The named prospects you are actively working. You keep this list
+      between 10 and 20. Everything else in the pipeline is still tracked, just not on deck.</div>
+    <div class="grid-4">
+      <div class="kpi-card drill" id="kpi-top-count-card">
+        <div class="kpi-label">On Deck</div>
+        <div class="kpi-value" id="kpi-top-count">—</div>
+        <div class="kpi-sub" id="kpi-top-count-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-top-monthly-card">
+        <div class="kpi-label">If All Closed / Month</div>
+        <div class="kpi-value currency" id="kpi-top-monthly">—</div>
+        <div class="kpi-sub">Recurring, not booked.</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-top-annual-card">
+        <div class="kpi-label">If All Closed / Year</div>
+        <div class="kpi-value currency" id="kpi-top-annual">—</div>
+        <div class="kpi-sub">Monthly x 12.</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-top-noweb-card">
+        <div class="kpi-label">No Real Website</div>
+        <div class="kpi-value" id="kpi-top-noweb">—</div>
+        <div class="kpi-sub">Clearest gap to sell against.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">List Size Against Your 10 to 20 Range</div>
+      <div class="band">
+        <div class="band-track" id="top-band-track"></div>
+        <div class="band-labels">
+          <span>0</span>
+          <span id="top-band-note">&nbsp;</span>
+          <span id="top-band-max">&nbsp;</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Who Is On Deck, Weakest Web Presence First</div>
+      <div id="top-leads-table"></div>
     </div>
   </div>
 
@@ -720,34 +851,48 @@
     <div id="web-presence-container"></div>
   </div>
 
-  <!-- 4. PARTNERSHIPS -->
-  <div class="section-title">Partnerships</div>
-  <div class="grid-4">
-    <div class="kpi-card">
-      <div class="kpi-label">Tracked Partners</div>
-      <div class="kpi-value" id="kpi-partners">—</div>
+  <!-- 4. PARTNERSHIPS (own module — separate flow from client work) -->
+  <div class="module" id="partnerships-module">
+    <div class="module-head">
+      <div class="module-title">Go To Market Partners</div>
+      <div class="module-tag">Channel</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Active Agreements</div>
-      <div class="kpi-value" id="kpi-partner-active">—</div>
+    <div class="module-sub" id="partner-scope-note">Channels that can put UnderHype in front of new
+      clients: MSPs, marketing agencies, commercial leasing and property managers, chambers.
+      People who deliver work with you and the platforms you build on are tracked in Notion but
+      stay out of this module.</div>
+    <div class="grid-4">
+      <div class="kpi-card drill" id="kpi-partners-card">
+        <div class="kpi-label">GTM Partners</div>
+        <div class="kpi-value" id="kpi-partners">—</div>
+        <div class="kpi-sub" id="kpi-partners-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-partner-active-card">
+        <div class="kpi-label">Active Agreements</div>
+        <div class="kpi-value" id="kpi-partner-active">—</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-partner-talking-card">
+        <div class="kpi-label">In Conversation</div>
+        <div class="kpi-value" id="kpi-partner-talking">—</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-partner-clients-card">
+        <div class="kpi-label">Clients Generated</div>
+        <div class="kpi-value" id="kpi-partner-clients">—</div>
+        <div class="kpi-sub">The only partnership number that matters.</div>
+      </div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">In Conversation</div>
-      <div class="kpi-value" id="kpi-partner-talking">—</div>
+    <div class="card">
+      <div class="card-title">Partner Stages</div>
+      <div id="partner-funnel-container"></div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Clients Generated</div>
-      <div class="kpi-value" id="kpi-partner-clients">—</div>
-      <div class="kpi-sub">The only partnership number that matters.</div>
+    <div class="card">
+      <div class="card-title">Partner Conversations, Quietest First</div>
+      <div id="partner-threads-table"></div>
     </div>
-  </div>
-  <div class="card" style="margin-bottom: 32px;">
-    <div class="card-title">Partner Stages</div>
-    <div id="partner-funnel-container"></div>
-  </div>
-  <div class="card" style="margin-bottom: 32px;">
-    <div class="card-title">Partner Detail</div>
-    <div id="partners-table"></div>
+    <div class="card">
+      <div class="card-title">Partner Detail</div>
+      <div id="partners-table"></div>
+    </div>
   </div>
 
   <!-- 5. REVENUE OVERVIEW -->
@@ -926,6 +1071,9 @@
   const partnerKpis = partnerships.kpis || {};
   const partnerStages = partnerships.stages || {};
   const partnerRecords = partnerships.records || [];
+  const partnerThreads = partnerships.quiet || [];
+  const topLeads = data.top_leads || {};
+  const topLeadRecords = topLeads.records || [];
   const openThreads = data.open_threads || [];
   const traffic = data.traffic || null;
 
@@ -974,6 +1122,67 @@
       : 'All active engagements are billed.';
 
   document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
+  document.getElementById('kpi-pipeline-sub').textContent =
+    `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every open deal closed. Unsigned estimate, not revenue.`;
+
+  /* ─── TOP LEADS ─── */
+  /* Aaron's curated working set. The 10-20 range is his own target, reported
+     back as a fact about list size. Nothing here assigns work or sets a date. */
+  const topCount = topLeads.count || 0;
+  const bandMin = topLeads.band_min || 10;
+  const bandMax = topLeads.band_max || 20;
+
+  document.getElementById('kpi-top-count').textContent = fmt(topCount);
+  document.getElementById('kpi-top-count-sub').textContent =
+    topCount < bandMin ? `${bandMin - topCount} below your ${bandMin} to ${bandMax} range.`
+      : topCount > bandMax ? `${topCount - bandMax} above your ${bandMin} to ${bandMax} range.`
+      : `Inside your ${bandMin} to ${bandMax} range.`;
+
+  document.getElementById('kpi-top-monthly').textContent = fmtCurrency(topLeads.monthly_value || 0);
+  document.getElementById('kpi-top-annual').textContent = fmtCurrency(topLeads.annual_value || 0);
+
+  const THIN_WEB = new Set(['None', 'Social Only', 'Booking Tool Only']);
+  const topNoWeb = topLeadRecords.filter(r => THIN_WEB.has(r.web_presence)).length;
+  document.getElementById('kpi-top-noweb').textContent = fmt(topNoWeb);
+
+  // Range bar. Scale to whichever is larger, the range ceiling or the real count,
+  // so an over-full list is still drawn honestly instead of pinned at 100%.
+  const bandScale = Math.max(bandMax, topCount) || 1;
+  const pct = (n) => `${Math.min(100, (n / bandScale) * 100)}%`;
+  document.getElementById('top-band-track').innerHTML =
+    `<div class="band-zone" style="left:${pct(bandMin)};width:${Math.max(0, Math.min(100, ((bandMax - bandMin) / bandScale) * 100))}%;"></div>`
+    + `<div class="band-fill" style="width:${pct(topCount)};"></div>`;
+  document.getElementById('top-band-note').textContent =
+    `${topCount} on deck \u2014 shaded zone is ${bandMin} to ${bandMax}`;
+  document.getElementById('top-band-max').textContent = String(bandScale);
+
+  const tlEl = document.getElementById('top-leads-table');
+  if (topLeadRecords.length > 0) {
+    const quietTxt = (d) => d === null || d === undefined ? 'not logged'
+      : d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+    let html = '<table class="mini-table"><thead><tr><th>Business</th><th>Stage</th>'
+      + '<th>Web Presence</th><th>Location</th><th>Quiet For</th><th style="text-align:right;">Monthly</th></tr></thead><tbody>';
+    topLeadRecords.forEach(r => {
+      const wp = r.web_presence || '\u2014';
+      const wpColor = THIN_WEB.has(r.web_presence) ? 'var(--accent-light)' : 'var(--text-secondary)';
+      html += `<tr>
+        <td class="name">${esc(r.name)}</td>
+        <td style="font-size:12px;">${esc(r.stage)}</td>
+        <td style="font-size:12px;color:${wpColor};">${esc(wp)}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${esc(r.location || '\u2014')}</td>
+        <td class="mono" style="font-size:12px;color:var(--text-dim);white-space:nowrap;">${quietTxt(r.days_quiet)}</td>
+        <td class="mono" style="text-align:right;">$${fmtCurrency(r.est_monthly || 0)}/mo</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div class="kpi-sub" style="margin-top:18px;">Flagged with the Top Lead checkbox in Notion. `
+      + `Ordered by how thin their web presence is, which is the gap you sell against. `
+      + `Nothing here is a deadline or an assignment.</div>`;
+    tlEl.innerHTML = html;
+  } else {
+    tlEl.innerHTML = '<div class="empty-state">No leads flagged as Top Lead yet. '
+      + 'Check the Top Lead box on a Pipeline record in Notion to put it on deck.</div>';
+  }
 
   /* ─── WHERE THINGS STAND ─── */
   /* A recency view, not a task list. No due dates, no priorities, no nags.
@@ -1005,6 +1214,7 @@
     });
     html += '</tbody></table>';
     html += `<div class="kpi-sub" style="margin-top:18px;">${openThreads.length} open threads, longest-quiet first. `
+      + `Clients and prospects only \u2014 partner conversations live in their own module. `
       + `Measured from the Last Contact field only \u2014 editing a record does not count as contact, and nothing here is a deadline.`
       + (unlogged > 0 ? ` ${unlogged} have no contact ever logged.` : '')
       + '</div>';
@@ -1194,11 +1404,18 @@
     wpEl.innerHTML = '<div class="empty-state">No records qualified for web presence yet.<br>Set the Web Presence field in Notion to populate this.</div>';
   }
 
-  /* ─── PARTNERSHIPS ─── */
+  /* ─── PARTNERSHIPS (GO TO MARKET ONLY) ─── */
   document.getElementById('kpi-partners').textContent = fmt(partnerKpis.total || 0);
   document.getElementById('kpi-partner-active').textContent = fmt(partnerKpis.active_agreements || 0);
   document.getElementById('kpi-partner-talking').textContent = fmt(partnerKpis.in_conversation || 0);
   document.getElementById('kpi-partner-clients').textContent = fmt(partnerKpis.clients_generated || 0);
+
+  // Say out loud how many partner records are being held back, so the count
+  // here never looks like data went missing.
+  const excludedPartners = partnerships.excluded_non_gtm || 0;
+  document.getElementById('kpi-partners-sub').textContent = excludedPartners > 0
+    ? `${excludedPartners} other partner record${excludedPartners === 1 ? '' : 's'} in Notion are delivery or vendor, not channel.`
+    : 'Every tracked partner is a go-to-market channel.';
 
   const PARTNER_STAGE_ORDER = ['Identified', 'Contacted', 'In Conversation', 'Terms Discussed', 'Agreement Active', 'Dormant', 'Declined'];
   const PARTNER_STAGE_COLORS = ['#d9854e', '#c4652a', '#b35a24', '#a24f1f', '#4ade80', '#3d3835', '#2a2826'];
@@ -1243,7 +1460,41 @@
     html += '</tbody></table>';
     ptEl.innerHTML = html;
   } else {
-    ptEl.innerHTML = '<div class="empty-state">No partner records yet.</div>';
+    ptEl.innerHTML = '<div class="empty-state">No go-to-market partners yet. '
+      + 'Set Partner Class to Go To Market on a Partnerships record in Notion to surface it here.</div>';
+  }
+
+  /* Partner conversations get their own recency list. Same rules as the client
+     view: quietest first, Last Contact only, no deadlines. */
+  const pqEl = document.getElementById('partner-threads-table');
+  if (partnerThreads.length > 0) {
+    const quietP = (d) => d === null || d === undefined ? 'not logged'
+      : d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+    const unloggedP = partnerThreads.filter(t => t.days_quiet === null || t.days_quiet === undefined).length;
+    let html = '<table class="mini-table"><thead><tr><th>Quiet For</th><th>Partner</th>'
+      + '<th>Organization</th><th>Stage</th><th>Last Note</th></tr></thead><tbody>';
+    partnerThreads.forEach(t => {
+      const d = t.days_quiet;
+      const c = d === null || d === undefined ? 'var(--text-dim)'
+        : d >= 90 ? 'var(--accent-light)'
+        : d >= 30 ? 'var(--warning)'
+        : 'var(--text-secondary)';
+      html += `<tr>
+        <td class="mono" style="color:${c};white-space:nowrap;">${quietP(d)}</td>
+        <td class="name">${esc(t.name)}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${esc(truncate(t.contact, 40)) || '\u2014'}</td>
+        <td style="font-size:12px;">${esc(t.stage)}</td>
+        <td style="color:var(--text-muted);font-size:12px;">${esc(truncate(t.note, 100))}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<div class="kpi-sub" style="margin-top:18px;">${partnerThreads.length} live partner conversation`
+      + `${partnerThreads.length === 1 ? '' : 's'}, longest-quiet first. Dormant and declined are left out.`
+      + (unloggedP > 0 ? ` ${unloggedP} have no contact ever logged.` : '')
+      + '</div>';
+    pqEl.innerHTML = html;
+  } else {
+    pqEl.innerHTML = '<div class="empty-state">No live partner conversations.</div>';
   }
 
   /* ─── REVENUE OVERVIEW ─── */
@@ -1466,7 +1717,9 @@
     f += field('Phone', r.phone);
     f += field('Email', r.email);
     if (r.mrr) f += field('MRR', money(r.mrr));
-    if (r.est_value) f += field('Est. Value (forecast)', money(r.est_value));
+    if (r.est_monthly) f += field('Est. Value / Month', money(r.est_monthly));
+    if (r.est_annual) f += field('Est. Value / Year', money(r.est_annual));
+    if (r.top_lead) f += field('Top Lead', 'Yes \u2014 on deck');
     if (r.project_revenue) f += field('Project Revenue', money(r.project_revenue));
     f += field('Last Contact', r.last_contact);
     f += field('Close Date', r.close_date);
@@ -1599,11 +1852,40 @@
   ));
 
   wire(cardOf('kpi-pipeline'), () => drillRecords(
-    'Open Forecast',
-    'Est. Value summed across open-stage records. Unsigned estimates, not revenue.',
-    r => r.is_open && r.est_value > 0,
-    'Nothing here is committed money. A record with no Est. Value set does not appear.'
+    'Open Forecast Per Month',
+    'Monthly Est. Value summed across open-stage records. Unsigned estimates, not revenue.',
+    r => r.is_open && r.est_monthly > 0,
+    'Every Est. Value is now a monthly figure, so the annual number is simply this x12. '
+    + 'Nothing here is committed money, and a record with no Est. Value set does not appear.'
   ));
+
+  /* ── Top Leads cards ── */
+  const isTop = (r) => r.top_lead === true;
+  const TOP_HINT = 'Flagged with the Top Lead checkbox in Notion. This is your own working set, '
+    + 'not a queue the dashboard generated.';
+
+  wire(cardOf('kpi-top-count'), () => drillRecords(
+    'Top Leads On Deck',
+    `The ${topCount} prospects you have flagged as actively worked.`,
+    isTop, TOP_HINT));
+
+  wire(cardOf('kpi-top-monthly'), () => drillRecords(
+    'Top Leads, Monthly Value If All Closed',
+    `${money(topLeads.monthly_value || 0)} of recurring revenue across ${topCount} leads. None of it is booked.`,
+    isTop,
+    'A hypothetical ceiling, not a forecast of what will close.'));
+
+  wire(cardOf('kpi-top-annual'), () => drillRecords(
+    'Top Leads, Annual Value If All Closed',
+    `${money(topLeads.annual_value || 0)} a year, which is the monthly figure x12.`,
+    isTop,
+    'Same records as the monthly card, expressed annually.'));
+
+  wire(cardOf('kpi-top-noweb'), () => drillRecords(
+    'Top Leads With No Real Website',
+    'Top Leads whose web presence is None, Social Only, or Booking Tool Only.',
+    r => isTop(r) && ['None', 'Social Only', 'Booking Tool Only'].includes(r.web_presence),
+    'These are the prospects where the gap you sell against is easiest to show them.'));
 
   /* ── Funnel, billing, web presence, lead sources, engagement models ── */
   function wireBars(containerId, attr, titleFor, subFor) {
@@ -1730,37 +2012,35 @@
 
   wireTableRows('open-threads-table', openThreads,
     (t) => t && (byId(t.id) || null), recordCard);
-  /* Partner threads live in the same table, so fall back to the partner list. */
-  (function () {
-    const wrap = document.getElementById('open-threads-table');
-    if (!wrap) return;
-    wrap.querySelectorAll('tbody tr').forEach((tr, i) => {
-      const t = openThreads[i];
-      if (!t || t.kind !== 'Partner') return;
-      const p = partnerRecords.find(x => x.id === t.id);
-      if (!p) return;
-      tr.classList.add('drill-row');
-      tr.setAttribute('tabindex', '0');
-      const open = () => openDrill(p.partner, 'Full partnership record as it exists in Notion.', partnerCard(p));
-      tr.addEventListener('click', guarded(open));
-      tr.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-      });
-    });
-  })();
+
+  wireTableRows('top-leads-table', topLeadRecords,
+    (r) => r && (byId(r.id) || null), recordCard);
 
   wireTableRows('active-clients-table', activeClients,
     (c) => c && records.find(r => r.name === c.name), recordCard);
 
   wireTableRows('partners-table', partnerRecords, (p) => p, partnerCard);
 
+  wireTableRows('partner-threads-table', partnerThreads,
+    (t) => t && (partnerRecords.find(x => x.id === t.id) || null), partnerCard);
+
   /* Partnership KPI cards */
   wire(cardOf('kpi-partners'), () => drillPartners(
-    'All Partners', 'Every live record in the Partnerships database.', () => true));
+    'Go To Market Partners',
+    'Channels that can introduce UnderHype to new clients.',
+    () => true,
+    excludedPartners > 0
+      ? `${excludedPartners} further partner record${excludedPartners === 1 ? '' : 's'} exist in Notion but are `
+        + 'classed as delivery contractors or platform vendors, so they are excluded from this module on purpose.'
+      : undefined));
+  // Must match the sync's definition of in_conversation exactly (In Conversation
+  // + Terms Discussed). It previously listed Contacted partners too, so the
+  // modal showed 3 records behind a KPI that read 1.
   wire(cardOf('kpi-partner-talking'), () => drillPartners(
     'Partners In Conversation',
-    'Partners past first contact but not yet under agreement.',
-    p => ['Contacted', 'In Conversation'].includes(p.stage)));
+    'Partners actively talking terms: stage In Conversation or Terms Discussed.',
+    p => ['In Conversation', 'Terms Discussed'].includes(p.stage),
+    'Partners only at Identified or Contacted are not counted here yet.'));
   wire(cardOf('kpi-partner-active'), () => drillPartners(
     'Active Partner Agreements', 'Partners with an agreement in place.',
     p => p.stage === 'Agreement Active'));
