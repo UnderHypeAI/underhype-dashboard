@@ -658,6 +658,59 @@
     color: var(--text-secondary);
     margin-bottom: 18px;
   }
+
+  /* ── Action bar ──────────────────────────────────────────────────────────
+     Turns a drill-down from something to read into something to act from.
+     Only buttons backed by real data are rendered, so a record with no phone
+     never shows a dead Call button. */
+  .act-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--card-border);
+  }
+  .act {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: #221f1d;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 11.5px;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+    white-space: nowrap;
+  }
+  .act:hover, .act:focus-visible {
+    background: #2b2724;
+    border-color: var(--accent);
+    color: #fff;
+    outline: none;
+  }
+  .act svg { width: 13px; height: 13px; flex: 0 0 13px; }
+  .act-primary {
+    border-color: rgba(196,101,42,.55);
+    color: var(--accent-light);
+  }
+  .act-primary:hover, .act-primary:focus-visible {
+    background: rgba(196,101,42,.16);
+    color: #fff;
+  }
+  .act-done { color: var(--success); border-color: rgba(74,222,128,.5); }
+  .act-none {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--card-border);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
 </style>
 </head>
 <body>
@@ -1182,8 +1235,20 @@
       </tr>`;
     });
     html += '</tbody></table>';
+    // Reachability is state, not a to-do: it says which of these you could
+    // actually contact right now if you decided to.
+    // Reads the contact fields carried on the top-lead record itself; byId is
+    // declared later in this scope and is not available here.
+    var reachable = topLeadRecords.filter(function (r) {
+      return r.phone || r.email;
+    }).length;
+    var reachTxt = reachable === topCount
+      ? `All ${topCount} have a phone or email on file, so any of them can be reached from here.`
+      : `${reachable} of ${topCount} have a phone or email on file. `
+        + `The other ${topCount - reachable} cannot be contacted from here until you add one.`;
     html += `<div class="kpi-sub" style="margin-top:18px;">Flagged with the Top Lead checkbox in Notion. `
       + `Ordered by how thin their web presence is, which is the gap you sell against. `
+      + `Click any row to open the record and act on it. ${reachTxt} `
       + `Nothing here is a deadline or an assignment.</div>`;
     tlEl.innerHTML = html;
   } else {
@@ -1705,6 +1770,146 @@
             <div class="rec-f-value">${esc(String(value))}</div></div>`;
   }
 
+  /* ── Action bar ────────────────────────────────────────────────────────────
+     Every drill-down should be a place to act, not just a place to read. These
+     are the actions a browser can genuinely perform today: dial, text, compose,
+     open the site, open the record. Sending on Aaron's behalf is not wired up
+     yet, so nothing here pretends to. */
+
+  const ICON = {
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 '
+      + '19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 '
+      + '2 0 0 1 2 1.7c.1 1 .3 1.9.6 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 '
+      + '1 2.1-.4c.9.3 1.8.5 2.8.6a2 2 0 0 1 1.7 2z"/></svg>',
+    sms: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 '
+      + '8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 '
+      + '1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"/></svg>',
+    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 '
+      + '0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/>'
+      + '<line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 '
+      + '1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/>'
+      + '<line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" '
+      + 'rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    notion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 '
+      + '1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/>'
+      + '<line x1="10" y1="14" x2="21" y2="3"/></svg>',
+  };
+
+  /* North American dialling: 10 digits gets a +1, 11 starting with 1 gets a plus,
+     anything else is passed through so an odd format still produces a link. */
+  function telHref(raw) {
+    const d = String(raw || '').replace(/[^\d+]/g, '');
+    if (/^\d{10}$/.test(d)) return '+1' + d;
+    if (/^1\d{10}$/.test(d)) return '+' + d;
+    if (d.startsWith('+')) return d;
+    return d;
+  }
+
+  /* Phone and email shown as fields are made clickable too, so the number itself
+     is a live dial target and not just text to read out. */
+  function contactField(label, value, scheme) {
+    if (!value) return '';
+    const href = scheme === 'tel' ? 'tel:' + telHref(value) : 'mailto:' + value;
+    return `<div><div class="rec-f-label">${esc(label)}</div>`
+      + `<div class="rec-f-value"><a class="rec-link" style="margin-top:0;font-size:12.5px;" `
+      + `href="${esc(href)}">${esc(String(value))}</a></div></div>`;
+  }
+
+  function actBtn(href, icon, label, primary) {
+    return `<a class="act${primary ? ' act-primary' : ''}" href="${esc(href)}"`
+      + `${href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''}>`
+      + `${ICON[icon]}<span>${esc(label)}</span></a>`;
+  }
+
+  function copyBtn(value, label) {
+    return `<button type="button" class="act js-copy" data-copy="${esc(value)}">`
+      + `${ICON.copy}<span>${esc(label)}</span></button>`;
+  }
+
+  /* Builds the action row for a record or partner. `name` is used to fall back to
+     a web search when there is no site on file, which is the usual state for the
+     prospects with the weakest web presence. */
+  function actionBar(o, name) {
+    const phone = o.phone, email = o.email, site = o.website, notion = o.url;
+    let a = '';
+    if (phone) {
+      const t = telHref(phone);
+      a += actBtn('tel:' + t, 'phone', 'Call', true);
+      a += actBtn('sms:' + t, 'sms', 'Text', true);
+    }
+    if (email) a += actBtn('mailto:' + email, 'mail', 'Email', true);
+    if (site) a += actBtn(site, 'globe', 'Website');
+    else if (name && !/\brollup\b/i.test(name)) {
+      // Search on the record's own location rather than assuming Emmett, and skip
+      // the button entirely for rollup rows whose name is a description, not a
+      // business anyone could look up.
+      const q = o.location ? name + ' ' + o.location : name;
+      a += actBtn('https://www.google.com/search?q=' + encodeURIComponent(q),
+        'search', 'Look up');
+    }
+    if (phone) a += copyBtn(phone, 'Copy number');
+    if (email) a += copyBtn(email, 'Copy email');
+    if (notion) a += actBtn(notion, 'notion', 'Notion');
+    if (!a) return '';
+    let html = `<div class="act-bar">${a}</div>`;
+    if (!phone && !email) {
+      html += '<div class="act-none">No phone or email on this record yet, '
+        + 'so there is nothing to dial or send from here.</div>';
+    }
+    return html;
+  }
+
+  /* One delegated listener for every copy button, present and future. */
+  document.addEventListener('click', function (ev) {
+    const btn = ev.target.closest && ev.target.closest('.js-copy');
+    if (!btn) return;
+    ev.preventDefault();
+    const value = btn.getAttribute('data-copy') || '';
+    const label = btn.querySelector('span');
+    const original = label ? label.textContent : '';
+    const flash = (msg, ok) => {
+      if (!label) return;
+      label.textContent = msg;
+      if (ok) btn.classList.add('act-done');
+      setTimeout(() => {
+        label.textContent = original;
+        btn.classList.remove('act-done');
+      }, 1400);
+    };
+    const fallback = () => {
+      // Clipboard API needs a secure context and permission. Where it is blocked,
+      // select the text so a manual copy still works instead of failing silently.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = value;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        flash(ok ? 'Copied' : value, ok);
+      } catch (e) {
+        flash(value, false);
+      }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(() => flash('Copied', true), fallback);
+    } else {
+      fallback();
+    }
+  });
+
   /* Full detail for one CRM record. Only fields that actually hold a value are
      rendered, so an empty record looks empty instead of showing fake structure. */
   function recordCard(r) {
@@ -1721,8 +1926,8 @@
     f += field('Engagement Model', r.engagement_model);
     f += field('Industry', r.industry);
     f += field('Location', r.location);
-    f += field('Phone', r.phone);
-    f += field('Email', r.email);
+    f += contactField('Phone', r.phone, 'tel');
+    f += contactField('Email', r.email, 'mailto');
     if (r.mrr) f += field('MRR', money(r.mrr));
     if (r.est_monthly) f += field('Est. Value / Month', money(r.est_monthly));
     if (r.est_annual) f += field('Est. Value / Year', money(r.est_annual));
@@ -1751,9 +1956,7 @@
     if (r.notes) {
       html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(r.notes)}</div>`;
     }
-    if (r.url) {
-      html += `<a class="rec-link" href="${esc(r.url)}" target="_blank" rel="noopener">Open in Notion \u2192</a>`;
-    }
+    html += actionBar(r, r.name);
     return html + '</div>';
   }
 
@@ -1767,8 +1970,8 @@
     f += field('Stage', p.stage);
     f += field('Fit Grade', p.fit);
     f += field('Location', p.location);
-    f += field('Phone', p.phone);
-    f += field('Email', p.email);
+    f += contactField('Phone', p.phone, 'tel');
+    f += contactField('Email', p.email, 'mailto');
     f += field('Rev Share', p.rev_share);
     f += field('Clients Generated', p.clients_generated);
     f += field('Referrals Received', p.referrals_received);
@@ -1787,9 +1990,7 @@
     if (p.notes) {
       html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(p.notes)}</div>`;
     }
-    if (p.url) {
-      html += `<a class="rec-link" href="${esc(p.url)}" target="_blank" rel="noopener">Open in Notion \u2192</a>`;
-    }
+    html += actionBar(p, p.organization || p.partner);
     return html + '</div>';
   }
 
