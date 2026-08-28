@@ -859,6 +859,14 @@
     <div id="open-threads-table"></div>
   </div>
 
+  <!-- 1b2. INBOUND SIGNALS -->
+  <div class="section-title">Inbound Signals</div>
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">What Came In, Last 45 Days</div>
+    <div id="signals-body"></div>
+    <div id="signals-health"></div>
+  </div>
+
   <!-- 1c. ACTIVE ENGAGEMENTS -->
   <div class="section-title">Active Engagements</div>
   <div class="card" style="margin-bottom: 32px;">
@@ -1129,6 +1137,7 @@
   const topLeadRecords = topLeads.records || [];
   const openThreads = data.open_threads || [];
   const traffic = data.traffic || null;
+  const signals = data.signals || null;
 
   const BILLING_COLORS = {
     'Paid': 'var(--success)',
@@ -2217,6 +2226,209 @@
   }
 
   const byId = (id) => records.find(r => r.id === id);
+
+  /* ─── INBOUND SIGNALS ───────────────────────────────────────────────────────
+     A state view of what arrived, not a second inbox and not a task queue.
+     Gmail is a better place to read and reply. What this earns its keep on is
+     the one thing Gmail cannot do: telling you whether an incoming number or
+     address belongs to someone already in the pipeline. Call waves are
+     collapsed to a single line so real signal stays visible. */
+  (function renderSignals() {
+    const el = document.getElementById('signals-body');
+    const healthEl = document.getElementById('signals-health');
+    if (!el) return;
+
+    if (!signals || signals.unavailable) {
+      el.innerHTML = '<div class="empty-state">Signal collection did not run on the last sync, '
+        + 'so this is not a statement that nothing came in.</div>';
+      if (healthEl && signals && signals.error) {
+        healthEl.innerHTML = '<div class="kpi-sub" style="margin-top:16px;">Reason: '
+          + esc(signals.error) + '</div>';
+      }
+      return;
+    }
+
+    const c = signals.counts || {};
+    const matched = signals.matched || [];
+    const people = signals.linkedin_people || [];
+    const liAll = signals.linkedin || [];
+    const unknown = signals.unknown_local || [];
+    const bursts = signals.bursts || [];
+
+    const ago = (iso) => {
+      if (!iso) return 'unknown';
+      const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+      if (days <= 0) return 'today';
+      if (days === 1) return '1 day ago';
+      return days + ' days ago';
+    };
+    const dayLabel = (d) => {
+      const parts = String(d || '').split('-').map(Number);
+      if (!parts[0]) return String(d || '');
+      return new Date(parts[0], parts[1] - 1, parts[2])
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    const latestOf = (list, key) => {
+      let best = '';
+      list.forEach(x => { if (x[key] && x[key] > best) best = x[key]; });
+      return best;
+    };
+
+    let html = '<table class="mini-table"><thead><tr><th>Channel</th><th>What</th>'
+      + '<th>Latest</th><th>Read It In</th></tr></thead><tbody>';
+
+    /* Row 1 is the join that justifies the whole module. */
+    html += '<tr id="sig-row-matched"><td>' + pill('Phone + Email', 'var(--success)') + '</td>'
+      + '<td class="name">' + matched.length + ' matched to a pipeline record</td>'
+      + '<td style="color:var(--text-muted);font-size:12px;">'
+      + (matched.length ? esc(ago(matched[0].when)) : '\u2014') + '</td>'
+      + '<td style="color:var(--text-muted);font-size:12px;">Gmail</td></tr>';
+
+    if (people.length) {
+      html += '<tr id="sig-row-linkedin"><td>' + pill('LinkedIn', '#60a5fa') + '</td>'
+        + '<td class="name">' + people.length + ' people, ' + liAll.length
+        + ' message notifications</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">'
+        + esc(ago(latestOf(people, 'last_when'))) + '</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">LinkedIn</td></tr>';
+    }
+
+    if (unknown.length) {
+      html += '<tr id="sig-row-unknown"><td>' + pill('Google Voice', 'var(--warning)') + '</td>'
+        + '<td class="name">' + unknown.length + ' unknown local number'
+        + (unknown.length === 1 ? '' : 's') + ' worth a look</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">'
+        + esc(ago(unknown[0].last_when)) + '</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">Google Voice</td></tr>';
+    }
+
+    if (bursts.length) {
+      /* Sum of per-day distinct numbers double counts anyone who appeared on
+         more than one day, so report the actual suppressed count instead. */
+      const collapsed = c.suppressed_wave_numbers || 0;
+      html += '<tr id="sig-row-bursts"><td>' + pill('Filtered', 'var(--text-muted)') + '</td>'
+        + '<td class="name" style="color:var(--text-muted);">' + collapsed
+        + ' one-off callers collapsed as call waves</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">'
+        + esc(dayLabel(bursts[0].day)) + '</td>'
+        + '<td style="color:var(--text-muted);font-size:12px;">Google Voice</td></tr>';
+    }
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
+
+    /* ── Drill-downs ── */
+    const simpleCard = (title, sub, actions) => {
+      let h = '<div class="rec-card"><div class="rec-head"><div>'
+        + '<div class="rec-name">' + esc(title) + '</div>'
+        + '<div class="rec-contact">' + esc(sub) + '</div></div></div>';
+      if (actions) h += '<div class="rec-actions">' + actions + '</div>';
+      return h + '</div>';
+    };
+
+    const wireRow = (id, handler) => {
+      const tr = document.getElementById(id);
+      if (!tr) return;
+      tr.classList.add('drill-row');
+      tr.setAttribute('tabindex', '0');
+      tr.addEventListener('click', guarded(handler));
+      tr.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+      });
+    };
+
+    wireRow('sig-row-matched', () => {
+      const body = matched.length
+        ? matched.map(m => simpleCard(m.who || m.display,
+            m.kind + ' \u2022 ' + ago(m.when) + ' \u2022 matches '
+              + (m.record ? m.record.name : 'a pipeline record'),
+            [
+              m.link ? actBtn(m.link, 'mail', m.link_label || 'Open', true) : '',
+              m.record && m.record.url ? actBtn(m.record.url, 'notion', 'Open record') : '',
+            ].join(''))).join('')
+        : '<div class="empty-state">Nothing inbound in the last 45 days came from a phone '
+          + 'number or email already in the pipeline.<br><br>'
+          + (c.crm_phones_indexed || 0) + ' pipeline phone numbers were checked. That is the '
+          + 'expected result while the outreach is outbound, and it is not a sign anything is '
+          + 'broken. What this row buys you is that the day one of them does call, it names '
+          + 'itself here instead of arriving as an unknown number.</div>';
+      openDrill('Matched To A Pipeline Record',
+        'Inbound traffic joined to the CRM by phone number or email address.', body);
+    });
+
+    wireRow('sig-row-linkedin', () => {
+      const body = renderList(people, (p) => simpleCard(p.who,
+        p.count + ' message notification' + (p.count === 1 ? '' : 's')
+          + ' \u2022 latest ' + ago(p.last_when),
+        actBtn('https://www.linkedin.com/messaging/', 'mail',
+          'Open LinkedIn messaging', true)),
+        'No LinkedIn activity in the window.',
+        'LinkedIn does not put message text in its notification emails, so only the sender '
+        + 'and the timing are knowable here. None of these senders is in the pipeline, and a '
+        + 'high notification count often means an automated pitch rather than a conversation.');
+      openDrill('LinkedIn Senders', 'Grouped by person, most persistent first.', body);
+    });
+
+    wireRow('sig-row-unknown', () => {
+      const body = renderList(unknown, (u) => simpleCard(u.display,
+        u.count + ' contact' + (u.count === 1 ? '' : 's') + ' \u2022 '
+          + u.kinds.join(', ') + ' \u2022 latest ' + ago(u.last_when),
+        [
+          actBtn('tel:' + telHref(u.phone_key), 'phone', 'Call back', true),
+          actBtn('sms:' + telHref(u.phone_key), 'sms', 'Text'),
+          actBtn('https://voice.google.com/voicemail', 'globe', 'Google Voice'),
+        ].join('')),
+        'No unknown local numbers stood out.',
+        'Idaho numbers not in the pipeline that either made contact more than once or sent an '
+        + 'actual text. Single voicemails that landed inside a call wave are filtered out of '
+        + 'this list. None of this is known to be a prospect and none of it is a task.');
+      openDrill('Unknown Local Numbers', 'Possible new inbound, unverified.', body);
+    });
+
+    wireRow('sig-row-bursts', () => {
+      let t = '<table class="mini-table"><thead><tr><th>Day</th><th>Distinct Numbers</th>'
+        + '<th>Voicemails And Missed Calls</th></tr></thead><tbody>';
+      bursts.forEach(b => {
+        t += '<tr><td class="mono" style="white-space:nowrap;">' + esc(dayLabel(b.day))
+          + '</td><td class="mono">' + b.numbers + '</td><td class="mono">'
+          + b.events + '</td></tr>';
+      });
+      t += '</tbody></table>';
+      openDrill('Collapsed Call Waves', 'Filtered out of the signal list on purpose.',
+        '<div class="drill-hint">On each of these days a number of different callers each left '
+        + 'exactly one voicemail, which is the shape of a call wave rather than real inbound. '
+        + 'Gmail was checked directly for the quiet stretches around them and those stretches '
+        + 'really were quiet, so these clusters are genuine and not an artifact of how the data '
+        + 'was gathered. They are counted here rather than hidden, and any number that makes '
+        + 'contact again on a different day leaves this bucket automatically.</div>' + t);
+    });
+
+    /* ── Source health, so a broken feed reads as broken rather than as silence ── */
+    if (healthEl) {
+      const src = signals.sources || [];
+      const notCollected = signals.not_collected || [];
+      let h = '<div class="kpi-sub" style="margin-top:18px;">';
+      h += src.map(s => {
+        const state = s.ok ? 'reading' : 'not reading';
+        const colour = s.ok ? 'var(--success)' : 'var(--accent-light)';
+        return '<div style="margin-bottom:6px;"><span style="color:' + colour + ';">'
+          + esc(s.source) + ': ' + state + '</span>'
+          + (s.via ? ' <span style="color:var(--text-muted);">via ' + esc(s.via) + '</span>' : '')
+          + (s.error ? ' <span style="color:var(--text-muted);">\u2014 ' + esc(s.error) + '</span>' : '')
+          + (s.limitation ? ' <span style="color:var(--text-muted);">\u2014 ' + esc(s.limitation) + '</span>' : '')
+          + '</div>';
+      }).join('');
+      if (notCollected.length) {
+        h += '<div style="margin-top:10px;">Not collected: '
+          + notCollected.map(n => esc(n.source) + ' (' + esc(n.reason) + ')').join('; ')
+          + '</div>';
+      }
+      h += '<div style="margin-top:10px;">A state view, not a second inbox. Reading and '
+        + 'replying still happen in Gmail and LinkedIn, which are better at it. What this '
+        + 'adds is the join to the CRM.</div>';
+      healthEl.innerHTML = h + '</div>';
+    }
+  })();
 
   wireTableRows('open-threads-table', openThreads,
     (t) => t && (byId(t.id) || null), recordCard);
