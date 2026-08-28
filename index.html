@@ -503,6 +503,7 @@
     .kpi-value { font-size: 26px; }
     .funnel-label { width: 110px; font-size: 10px; }
   }
+
   /* ─── DRILL-DOWN ─── */
   /* Anything showing an aggregate carries .drill so it is visibly clickable
      and can be opened with a keyboard, not just a mouse. */
@@ -711,6 +712,115 @@
     font-size: 11px;
     color: var(--text-muted);
   }
+  /* ─── MOBILE ──────────────────────────────────────────────────────────────
+     This dashboard gets used on a phone as much as a desktop, so phone width
+     is a first class layout rather than a shrunken desktop.
+
+     The root problem being fixed here: several tables carry five or six columns
+     with nowrap cells, so the document was 583px wide inside a 390px screen.
+     That made the whole page scroll sideways and every section appear
+     misaligned and clipped. Below 640px the tables stop being tables and become
+     labelled stacked rows, which removes the overflow at its source instead of
+     hiding it behind a scrollbar. The data-label values are stamped onto the
+     cells at runtime from each table's own headers, so this applies to every
+     table on the page and to any table added later. */
+  @media (max-width: 640px) {
+    .mini-table thead { display: none; }
+    .mini-table,
+    .mini-table tbody,
+    .mini-table tr,
+    .mini-table td {
+      display: block;
+      width: 100%;
+    }
+    .mini-table tr {
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: #161514;
+      padding: 11px 13px;
+      margin-bottom: 9px;
+    }
+    .mini-table tr:last-child { margin-bottom: 0; }
+    .mini-table td {
+      border-bottom: none;
+      padding: 4px 0;
+      display: grid;
+      grid-template-columns: 38% 1fr;
+      gap: 12px;
+      align-items: baseline;
+      /* Grid items stretch by default, which stretched every status pill
+         across the whole row. Size them to their content instead. */
+      justify-items: start;
+      /* Several cells set white-space:nowrap inline for the desktop table.
+         Inline styles outrank a stylesheet, so overriding needs the flag. */
+      white-space: normal !important;
+      overflow-wrap: break-word;
+    }
+    .mini-table td::before {
+      content: attr(data-label);
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    /* A cell with no content would otherwise render as a lone floating label. */
+    .mini-table td.is-empty { display: none; }
+    .mini-table .name { font-size: 13.5px; }
+
+    /* Rows are the tap target now, so make that obvious and comfortable. */
+    .drill-row { position: relative; }
+    .drill-row:active { background: #201e1c; }
+  }
+
+  @media (max-width: 560px) {
+    /* Reclaim 20px of width on each side. On a 390px screen that is real. */
+    .container { padding: 0 14px; }
+
+    /* Four stacked full-width KPI cards made the top of the dashboard an
+       endless scroll. Two up is legible at this width and shows the whole
+       headline set without scrolling. */
+    .grid-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-card { padding: 15px 14px; }
+    .kpi-label { font-size: 9.5px; letter-spacing: .06em; margin-bottom: 6px; }
+    .kpi-value { font-size: 23px; }
+    .kpi-sub { font-size: 10.5px; line-height: 1.45; }
+    .kpi-prefix { font-size: 14px; }
+
+    .card { padding: 16px 14px; }
+    .card-title { font-size: 13px; }
+    .section-title { font-size: 10px; }
+
+    .funnel-label { width: 92px; font-size: 9.5px; padding-right: 10px; }
+    .funnel-track { height: 24px; }
+
+    /* Full bleed sheet rather than a floating dialog with wasted margins. */
+    .modal-backdrop { padding: 0; }
+    .modal {
+      max-width: none;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      min-height: 100%;
+    }
+    .modal-head { padding: 16px 16px 14px; }
+    .modal-title { font-size: 15px; }
+    .modal-body { padding: 16px 16px 40px; }
+    .rec { padding: 13px 14px; }
+    .rec-fields { grid-template-columns: 1fr; gap: 10px; }
+
+    /* Action buttons become thumb targets instead of dense desktop chips. */
+    .act-bar { gap: 7px; }
+    .act { padding: 10px 13px; font-size: 12px; }
+  }
+
+  @media (max-width: 380px) {
+    /* Smallest phones: one KPI per row beats two cramped ones. */
+    .grid-4 { grid-template-columns: 1fr; }
+    .mini-table td { grid-template-columns: 44% 1fr; gap: 8px; }
+  }
+
 </style>
 </head>
 <body>
@@ -1759,11 +1869,33 @@
     if (e.key === 'Escape' && modal.classList.contains('open')) closeDrill();
   });
 
+  /* ─── RESPONSIVE TABLE LABELS ───────────────────────────────────────────
+     On a phone the tables become stacked rows, and a stacked row needs its own
+     label on every value or the numbers lose all meaning. Rather than hand
+     writing labels into a dozen table builders, each cell copies the text of
+     the header sitting above it. Reads the real header, so it cannot drift out
+     of sync with a column that gets renamed or reordered. */
+  function labelTables(root) {
+    (root || document).querySelectorAll('table.mini-table').forEach(tbl => {
+      const heads = [...tbl.querySelectorAll('thead th')].map(th => th.textContent.trim());
+      if (!heads.length) return;
+      tbl.querySelectorAll('tbody tr').forEach(tr => {
+        [...tr.children].forEach((td, i) => {
+          if (heads[i]) td.setAttribute('data-label', heads[i]);
+          /* An empty cell would otherwise show a label with nothing after it. */
+          const blank = !td.textContent.trim() && !td.querySelector('svg,img');
+          td.classList.toggle('is-empty', blank);
+        });
+      });
+    });
+  }
+
   function openDrill(title, subtitle, bodyHtml) {
     lastFocused = document.activeElement;
     document.getElementById('drill-title').textContent = title;
     document.getElementById('drill-sub').textContent = subtitle || '';
     modalBody.innerHTML = bodyHtml;
+    labelTables(modalBody);
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
     modal.scrollTop = 0;
@@ -2251,7 +2383,6 @@
     const c = signals.counts || {};
     const matched = signals.matched || [];
     const people = signals.linkedin_people || [];
-    const liAll = signals.linkedin || [];
     const unknown = signals.unknown_local || [];
     const bursts = signals.bursts || [];
 
@@ -2268,11 +2399,6 @@
       return new Date(parts[0], parts[1] - 1, parts[2])
         .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
-    const latestOf = (list, key) => {
-      let best = '';
-      list.forEach(x => { if (x[key] && x[key] > best) best = x[key]; });
-      return best;
-    };
 
     let html = '<table class="mini-table"><thead><tr><th>Channel</th><th>What</th>'
       + '<th>Latest</th><th>Read It In</th></tr></thead><tbody>';
@@ -2284,12 +2410,20 @@
       + (matched.length ? esc(ago(matched[0].when)) : '\u2014') + '</td>'
       + '<td style="color:var(--text-muted);font-size:12px;">Gmail</td></tr>';
 
-    if (people.length) {
+    /* Most recent first. How many times somebody pinged is not information,
+       it mostly measures how automated their outreach is. Who and when is. */
+    const recent = people.slice().sort((a, b) =>
+      (b.last_when || '').localeCompare(a.last_when || ''));
+
+    if (recent.length) {
+      const names = recent.slice(0, 2).map(p => p.who);
+      const rest = recent.length - names.length;
+      const who = names.join(', ')
+        + (rest > 0 ? ' and ' + rest + ' other' + (rest === 1 ? '' : 's') : '');
       html += '<tr id="sig-row-linkedin"><td>' + pill('LinkedIn', '#60a5fa') + '</td>'
-        + '<td class="name">' + people.length + ' people, ' + liAll.length
-        + ' message notifications</td>'
+        + '<td class="name">' + esc(who) + '</td>'
         + '<td style="color:var(--text-muted);font-size:12px;">'
-        + esc(ago(latestOf(people, 'last_when'))) + '</td>'
+        + esc(ago(recent[0].last_when)) + '</td>'
         + '<td style="color:var(--text-muted);font-size:12px;">LinkedIn</td></tr>';
     }
 
@@ -2319,10 +2453,11 @@
 
     /* ── Drill-downs ── */
     const simpleCard = (title, sub, actions) => {
-      let h = '<div class="rec-card"><div class="rec-head"><div>'
+      let h = '<div class="rec"><div class="rec-head">'
         + '<div class="rec-name">' + esc(title) + '</div>'
-        + '<div class="rec-contact">' + esc(sub) + '</div></div></div>';
-      if (actions) h += '<div class="rec-actions">' + actions + '</div>';
+        + '<div style="font-size:11px;color:var(--text-secondary);">'
+        + esc(sub) + '</div></div>';
+      if (actions) h += '<div class="act-bar">' + actions + '</div>';
       return h + '</div>';
     };
 
@@ -2357,16 +2492,14 @@
     });
 
     wireRow('sig-row-linkedin', () => {
-      const body = renderList(people, (p) => simpleCard(p.who,
-        p.count + ' message notification' + (p.count === 1 ? '' : 's')
-          + ' \u2022 latest ' + ago(p.last_when),
+      const body = renderList(recent, (p) => simpleCard(p.who, ago(p.last_when),
         actBtn('https://www.linkedin.com/messaging/', 'mail',
           'Open LinkedIn messaging', true)),
         'No LinkedIn activity in the window.',
-        'LinkedIn does not put message text in its notification emails, so only the sender '
-        + 'and the timing are knowable here. None of these senders is in the pipeline, and a '
-        + 'high notification count often means an automated pitch rather than a conversation.');
-      openDrill('LinkedIn Senders', 'Grouped by person, most persistent first.', body);
+        'Who reached out and when. LinkedIn does not put message text in its notification '
+        + 'emails, so the message itself has to be read in LinkedIn. None of these senders '
+        + 'is in the pipeline.');
+      openDrill('Who Messaged On LinkedIn', 'Most recent first.', body);
     });
 
     wireRow('sig-row-unknown', () => {
@@ -2532,6 +2665,9 @@
       });
     }
   }
+
+  /* Every table on the page is now built, so stamp the mobile labels. */
+  labelTables(document);
 
   /* Footnote so the feature is discoverable rather than hidden. */
   (function () {
