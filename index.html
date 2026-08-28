@@ -847,7 +847,26 @@
 <script>
 (function() {
   var k = 'dashboard_auth', h = 'SmVzc2ljYUxlaWdo';
-  if (sessionStorage.getItem(k) === h) {
+
+  /* The unlock used to live in sessionStorage, which iOS clears whenever it
+     drops a Home Screen web app from memory. That meant retyping the password
+     nearly every launch. localStorage survives across launches. Private
+     browsing can make localStorage throw on write, so fall back rather than
+     leaving the gate stuck. */
+  var store = (function () {
+    try {
+      var t = '__probe__';
+      localStorage.setItem(t, '1');
+      localStorage.removeItem(t);
+      return localStorage;
+    } catch (e) {
+      return sessionStorage;
+    }
+  })();
+
+  /* Also honour an existing sessionStorage unlock so an already open tab is
+     not logged out by this change. */
+  if (store.getItem(k) === h || sessionStorage.getItem(k) === h) {
     document.getElementById('password-overlay').style.display = 'none';
     return;
   }
@@ -857,7 +876,7 @@
   inp.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
       if (btoa(inp.value) === h) {
-        sessionStorage.setItem(k, h);
+        try { store.setItem(k, h); } catch (e) { /* unlock this view anyway */ }
         document.getElementById('password-overlay').style.display = 'none';
       } else {
         err.style.opacity = '1';
