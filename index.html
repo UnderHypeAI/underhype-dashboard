@@ -766,7 +766,8 @@
       line-height: 1.5;
     }
     /* A cell with no content would otherwise render as a lone floating label. */
-    .mini-table td.is-empty { display: none; }
+    .mini-table td.is-empty,
+    .mini-table td.dup-suppressed { display: none; }
     .mini-table .name { font-size: 13.5px; }
 
     /* Rows are the tap target now, so make that obvious and comfortable. */
@@ -1641,7 +1642,7 @@
         : 'var(--text-muted)';
       html += `<tr>
         <td class="name">${esc(p.partner)}${p.channel_conflict ? ' <span style="color:var(--warning);" title="Channel conflict">&#9888;</span>' : ''}</td>
-        <td style="font-size:12px;">${esc(truncate(p.organization, 40)) || '\u2014'}</td>
+        <td class="${sameAsPartner(p) ? 'dup-suppressed' : ''}" style="font-size:12px;">${sameAsPartner(p) ? '\u2014' : (esc(truncate(p.organization, 40)) || '\u2014')}</td>
         <td style="font-size:12px;color:var(--text-muted);">${esc(p.type) || '\u2014'}</td>
         <td>${pill(p.stage, stageColor)}</td>
         <td class="mono" style="color:${p.clients_generated > 0 ? 'var(--success)' : 'var(--text-dim)'};">${p.clients_generated}</td>
@@ -2101,12 +2102,21 @@
     return html + '</div>';
   }
 
+  /* True when the Organization column carries no information beyond the
+     Partner column, which happens when we do not yet know a human contact at
+     the org and the org name was used as the record title. */
+  function sameAsPartner(p) {
+    const a = (p.partner || '').trim().toLowerCase();
+    const b = (p.organization || '').trim().toLowerCase();
+    return !!a && a === b;
+  }
+
   function partnerCard(p) {
     const quietTxt = (p.days_quiet === null || p.days_quiet === undefined)
       ? 'No contact ever logged'
       : (p.days_quiet === 0 ? 'Last contact today' : `Quiet ${p.days_quiet} days`);
     let f = '';
-    f += field('Organization', p.organization);
+    if (!sameAsPartner(p)) f += field('Organization', p.organization);
     f += field('Partner Type', p.type);
     f += field('Stage', p.stage);
     f += field('Fit Grade', p.fit);
