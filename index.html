@@ -537,6 +537,113 @@
   }
 
 
+  /* ─── PROSPECT DATABASE ───────────────────────────────────────────────
+     A coverage row is a field name, a bar showing how many records have it,
+     and the count. Same visual language as the funnel bars, narrower, and
+     clickable so the gap opens the records behind it. */
+  .pr-goal {
+    margin-top: 18px;
+    padding: 13px 14px;
+    background: rgba(255, 255, 255, 0.022);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+  }
+  .pr-goal-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 11px;
+  }
+  .pr-goal-label {
+    font-size: 11px;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .pr-goal-count {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .pr-goal-count strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .pr-cov {
+    margin-top: 20px;
+  }
+  .pr-cov-title {
+    font-size: 11px;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .pr-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 7px;
+    border-radius: 4px;
+  }
+  .pr-row.clickable { cursor: pointer; }
+  .pr-row.clickable:hover { background: rgba(255, 255, 255, 0.03); }
+  .pr-label {
+    width: 132px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+    padding-right: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .pr-track {
+    flex: 1;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pr-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* A complete field is the boring case. Draining its colour puts the eye on
+     the fields that still have gaps, which is the only thing worth looking at
+     here. Accent stays reserved for the incomplete bars. */
+  .pr-fill.full { background: rgba(255, 255, 255, 0.09); }
+  .pr-num {
+    width: 84px;
+    padding-left: 11px;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .pr-num em {
+    font-style: normal;
+    color: var(--text-dim);
+  }
+  /* Hydration score chip on a drill-down card. */
+  .pr-score {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+  }
+  .pr-score.done {
+    border-color: rgba(74, 222, 128, 0.4);
+    color: var(--success);
+  }
+
   /* ─── COLLAPSIBLE SECTIONS (mobile only) ───────────────────────────────
      Desktop has room for everything, so the toggle never appears above
      640px and the body is never hidden there. On a phone the heavy blocks
@@ -884,6 +991,14 @@
     .funnel-label { width: 92px; font-size: 9.5px; padding-right: 10px; }
     .funnel-track { height: 24px; }
 
+    /* Coverage rows: the field name and the count both shrink so the bar
+       itself keeps enough width to still read as a proportion. */
+    .pr-label { width: 88px; font-size: 10px; padding-right: 9px; white-space: normal; line-height: 1.25; }
+    .pr-num { width: 62px; padding-left: 8px; font-size: 10px; }
+    .pr-track { height: 24px; }
+    .pr-goal-head { flex-direction: column; align-items: flex-start; gap: 5px; }
+    .pr-goal-count { font-size: 11.5px; white-space: normal; }
+
     /* Full bleed sheet rather than a floating dialog with wasted margins. */
     .modal-backdrop { padding: 0; }
     .modal {
@@ -1122,6 +1237,37 @@
       </div>
     </div>
     <div id="goodwill-note"></div>
+  </div>
+
+  <!-- 1b3. PROSPECT DATABASE -->
+  <div class="module" id="prospect-module">
+    <div class="module-head">
+      <div class="module-title">Prospect Database</div>
+      <div class="module-tag">List Coverage</div>
+    </div>
+    <div class="module-sub">How big the list is and how complete each record is. A prospect you
+      cannot reach is not a prospect yet, so this counts both the rows and the fields inside them.
+      Nothing here is a task or an assignment. It is a standing view of how usable the list is.</div>
+    <div class="grid-3">
+      <div class="kpi-card drill" id="kpi-pr-total-card">
+        <div class="kpi-label">In The System</div>
+        <div class="kpi-value" id="kpi-pr-total">&mdash;</div>
+        <div class="kpi-sub" id="kpi-pr-total-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-pr-hydrated-card">
+        <div class="kpi-label">Fully Hydrated</div>
+        <div class="kpi-value" id="kpi-pr-hydrated">&mdash;</div>
+        <div class="kpi-sub" id="kpi-pr-hydrated-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-pr-unreachable-card">
+        <div class="kpi-label">No Way To Reach</div>
+        <div class="kpi-value" id="kpi-pr-unreachable">&mdash;</div>
+        <div class="kpi-sub" id="kpi-pr-unreachable-sub">&nbsp;</div>
+      </div>
+    </div>
+    <div id="prospect-goal"></div>
+    <div id="prospect-coverage"></div>
+    <div id="prospect-note"></div>
   </div>
 
   <!-- 1b2. INBOUND SIGNALS -->
@@ -2670,6 +2816,182 @@
       + `Click a card to see the records behind it. Nothing here is a deadline or an assignment.</div>`;
 
     el.innerHTML = html;
+  })();
+
+  /* ─── PROSPECT DATABASE ─────────────────────────────────────────────────────
+     Two questions only: how many prospects are in the system, and how many of
+     them are complete enough to actually work. Everything is derived from the
+     same records every other module counts, so the numbers cannot disagree.
+
+     No queue, no assignments, no due dates. A gap is shown as a gap. */
+  const prospects = data.prospects || null;
+
+  /* A drill card for one prospect, leading with what the record is missing,
+     since that is the reason you opened it. */
+  function prospectCard(p) {
+    const base = byId(p.id) || p;
+    const done = !p.missing.length;
+    let f = '';
+    f += field('Contact', p.contact);
+    f += field('Stage', p.stage);
+    f += field('Industry', p.industry);
+    f += field('Location', p.location);
+    f += field('Web Presence', p.web_presence);
+    f += contactField('Phone', p.phone, 'tel');
+    f += contactField('Email', p.email, 'mailto');
+    if (p.website) {
+      f += '<div><div class="rec-f-label">Website</div><div class="rec-f-value">'
+        + '<a class="rec-link" style="margin-top:0;" href="' + esc(p.website) + '" target="_blank" rel="noopener">'
+        + esc(truncate(p.website.replace(/^https?:\/\//, ''), 34)) + '</a></div></div>';
+    }
+
+    let html = '<div class="rec">'
+      + '<div class="rec-head">'
+      + '<div class="rec-name">' + esc(p.name) + '</div>'
+      + '<div class="pr-score' + (done ? ' done' : '') + '">' + p.score + '/' + p.of + ' fields</div>'
+      + '</div>'
+      + '<div class="rec-fields">' + f + '</div>';
+    html += done
+      ? '<div class="rec-note"><div class="rec-note-label">Hydration</div>All ' + p.of + ' fields filled.</div>'
+      : '<div class="rec-note"><div class="rec-note-label">Still Missing</div>' + esc(p.missing.join(', ')) + '</div>';
+    html += actionBar(base, p.name);
+    return html + '</div>';
+  }
+
+  function drillProspects(title, subtitle, list, hint) {
+    openDrill(title, subtitle, renderList(list, prospectCard,
+      'No records match this figure.', hint));
+  }
+
+  (function renderProspects() {
+    const mod = document.getElementById('prospect-module');
+    if (!mod) return;
+    const goalEl = document.getElementById('prospect-goal');
+    const covEl = document.getElementById('prospect-coverage');
+    const noteEl = document.getElementById('prospect-note');
+
+    /* An older data.json from a traffic-only or signals-only refresh has no
+       prospect block. Say so rather than rendering a silent zero. */
+    if (!prospects) {
+      document.getElementById('kpi-pr-total-sub').textContent = 'Not in this data file.';
+      noteEl.innerHTML = '<div class="empty-state">This data file predates the Prospect Database '
+        + 'module. Run a full sync to populate it.</div>';
+      return;
+    }
+
+    const rows = prospects.records || [];
+    const fields = prospects.fields || [];
+    const total = prospects.total || 0;
+    const hydrated = rows.filter(r => r.hydrated);
+    const unreachable = rows.filter(r => !r.email && !r.phone);
+    const fmtN = (n) => Number(n).toLocaleString('en-US');
+
+    document.getElementById('kpi-pr-total').textContent = fmtN(total);
+    document.getElementById('kpi-pr-hydrated').textContent = fmtN(hydrated.length);
+    document.getElementById('kpi-pr-unreachable').textContent = fmtN(unreachable.length);
+
+    const remaining = Math.max(prospects.goal - total, 0);
+    document.getElementById('kpi-pr-total-sub').textContent = remaining
+      ? fmtN(remaining) + ' short of ' + fmtN(prospects.goal) + '.'
+      : 'Past the ' + fmtN(prospects.goal) + ' mark.';
+    document.getElementById('kpi-pr-hydrated-sub').textContent = total
+      ? 'All ' + fields.length + ' fields filled. ' + Math.round(hydrated.length / total * 100) + '% of the list.'
+      : 'Nothing in the list yet.';
+    document.getElementById('kpi-pr-unreachable-sub').textContent = unreachable.length
+      ? 'No email and no phone on record.'
+      : 'Every record has an email or a phone.';
+
+    /* ---- progress toward the goal ---- */
+    const pct = prospects.goal ? Math.min(total / prospects.goal * 100, 100) : 0;
+    const added = prospects.added_this_month;
+    const dayWord = (n) => n === 1 ? 'day' : 'days';
+    let pace;
+    if (prospects.phase === 'before') {
+      pace = prospects.goal_month + ' has not started. ' + prospects.days_left + ' '
+        + dayWord(prospects.days_left) + ' until the clock starts, and the count today is the '
+        + 'baseline it will be measured from.';
+    } else if (prospects.phase === 'during') {
+      pace = (added === null || added === undefined)
+        ? prospects.days_left + ' ' + dayWord(prospects.days_left) + ' left in ' + prospects.goal_month
+          + '. No pre-month reading on file, so added this month cannot be calculated yet.'
+        : fmtN(added) + ' added so far in ' + prospects.goal_month + ', ' + prospects.days_left
+          + ' ' + dayWord(prospects.days_left) + ' left.';
+    } else {
+      pace = prospects.goal_month + ' is over'
+        + ((added === null || added === undefined) ? '.' : '. ' + fmtN(added) + ' were added during it.');
+    }
+
+    goalEl.innerHTML = '<div class="pr-goal">'
+      + '<div class="pr-goal-head">'
+      + '<div class="pr-goal-label">' + esc(fmtN(prospects.goal)) + ' By ' + esc(prospects.goal_month) + '</div>'
+      + '<div class="pr-goal-count"><strong>' + esc(fmtN(total)) + '</strong> of ' + esc(fmtN(prospects.goal))
+      + (remaining ? ' &middot; ' + esc(fmtN(remaining)) + ' to go' : '') + '</div>'
+      + '</div>'
+      + '<div class="band" style="margin-top:0;">'
+      + '<div class="band-track"><div class="band-fill" style="width:' + pct.toFixed(2) + '%;"></div></div>'
+      + '</div>'
+      + '<div class="kpi-sub" style="margin-top:10px;">' + esc(pace) + '</div>'
+      + '</div>';
+
+    /* ---- field coverage ---- */
+    if (!total) {
+      covEl.innerHTML = '';
+      noteEl.innerHTML = '<div class="empty-state">No prospects in the system yet. Once records '
+        + 'land in the Pipeline database they are counted here automatically.</div>';
+      return;
+    }
+
+    let cov = '<div class="pr-cov"><div class="pr-cov-title">Field Coverage</div>';
+    fields.forEach(f => {
+      const gap = f.total - f.filled;
+      const p = f.total ? (f.filled / f.total * 100) : 0;
+      cov += '<div class="pr-row' + (gap ? ' clickable' : '') + '" data-field="' + esc(f.label) + '">'
+        + '<div class="pr-label">' + esc(f.label) + '</div>'
+        + '<div class="pr-track"><div class="pr-fill' + (gap ? '' : ' full') + '" style="width:'
+        + p.toFixed(2) + '%;"></div></div>'
+        + '<div class="pr-num">' + f.filled + '/' + f.total
+        + (gap ? ' <em>&minus;' + gap + '</em>' : '') + '</div>'
+        + '</div>';
+    });
+    cov += '</div>';
+    covEl.innerHTML = cov;
+
+    /* Clicking a coverage row opens exactly the records that field is missing
+       from, so a gap is never just a number you cannot look into. */
+    covEl.querySelectorAll('.pr-row.clickable').forEach(row => {
+      const label = row.getAttribute('data-field');
+      wire(row, () => {
+        const missing = rows.filter(r => r.missing.indexOf(label) !== -1);
+        drillProspects('Missing ' + label, missing.length + ' of ' + total + ' records',
+          missing, 'These records have no ' + label.toLowerCase() + ' on file.');
+      });
+    });
+
+    const gaps = fields.filter(f => f.filled < f.total);
+    const weakest = gaps.length
+      ? gaps.reduce((w, f) => (f.filled < w.filled ? f : w), gaps[0])
+      : null;
+
+    noteEl.innerHTML = '<div class="kpi-sub" style="margin-top:16px;">'
+      + 'A record counts as fully hydrated when all ' + fields.length + ' fields are filled: '
+      + esc(fields.map(f => f.label.toLowerCase()).join(', ')) + '. '
+      + 'Website Status is satisfied either by a URL or by a recorded Web Presence, so a business '
+      + 'with no website is hydrated rather than incomplete. Placeholder values such as TBD or '
+      + 'Unknown are counted as gaps, not as data. '
+      + (weakest ? esc(weakest.label) + ' is the thinnest field at ' + weakest.filled
+        + ' of ' + weakest.total + '. ' : 'Every field is complete on every record. ')
+      + 'Click a card or a coverage bar to see the records behind it. '
+      + 'Nothing here is a deadline or an assignment.</div>';
+
+    wire(cardOf('kpi-pr-total'), () => drillProspects(
+      'Every Prospect In The System', total + ' records, least complete last',
+      rows, 'Sorted by how complete each record is.'));
+    wire(cardOf('kpi-pr-hydrated'), () => drillProspects(
+      'Fully Hydrated Prospects', hydrated.length + ' of ' + total + ' records',
+      hydrated, 'All ' + fields.length + ' fields filled on these.'));
+    wire(cardOf('kpi-pr-unreachable'), () => drillProspects(
+      'No Way To Reach Them', unreachable.length + ' of ' + total + ' records',
+      unreachable, 'Neither an email nor a phone number on file.'));
   })();
 
   /* ─── INBOUND SIGNALS ───────────────────────────────────────────────────────
