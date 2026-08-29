@@ -222,6 +222,16 @@
     gap: 16px;
     margin-bottom: 32px;
   }
+  /* Five across, used only by the headline row. The excluded-forecast card has
+     to sit beside the forecast it was pulled out of, or the pair stops making
+     sense. Below full width the last card spans the leftover columns so the
+     row never ends on an orphan. */
+  .grid-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
 
   /* ─── KPI CARDS ─── */
   .kpi-card {
@@ -684,7 +694,13 @@
   }
 
   /* ─── RESPONSIVE ─── */
+  @media (max-width: 1180px) {
+    .grid-5 { grid-template-columns: repeat(3, 1fr); }
+    .grid-5 > :last-child { grid-column: span 2; }
+  }
   @media (max-width: 900px) {
+    .grid-5 { grid-template-columns: repeat(2, 1fr); }
+    .grid-5 > :last-child { grid-column: span 2; }
     .grid-4 { grid-template-columns: repeat(2, 1fr); }
     .grid-3 { grid-template-columns: 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
@@ -978,6 +994,7 @@
        endless scroll. Two up is legible at this width and shows the whole
        headline set without scrolling. */
     .grid-4 { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-5 { grid-template-columns: 1fr 1fr; gap: 10px; }
     .kpi-card { padding: 15px 14px; }
     .kpi-label { font-size: 9.5px; letter-spacing: .06em; margin-bottom: 6px; }
     .kpi-value { font-size: 23px; }
@@ -1022,6 +1039,8 @@
   @media (max-width: 380px) {
     /* Smallest phones: one KPI per row beats two cramped ones. */
     .grid-4 { grid-template-columns: 1fr; }
+    .grid-5 { grid-template-columns: 1fr; }
+    .grid-5 > :last-child { grid-column: auto; }
     .mini-table td { grid-template-columns: 44% 1fr; gap: 8px; }
   }
 
@@ -1129,7 +1148,7 @@
 
   <!-- 1. KPI CARDS -->
   <div class="section-title">Where The Business Actually Is</div>
-  <div class="grid-4">
+  <div class="grid-5">
     <div class="kpi-card">
       <div class="kpi-label">Paying Clients</div>
       <div class="kpi-value" id="kpi-paying">—</div>
@@ -1149,6 +1168,11 @@
       <div class="kpi-label">Open Forecast / Month</div>
       <div class="kpi-value currency" id="kpi-pipeline">—</div>
       <div class="kpi-sub" id="kpi-pipeline-sub">&nbsp;</div>
+    </div>
+    <div class="kpi-card" id="kpi-unval-card">
+      <div class="kpi-label">Not Yet Forecast / Month</div>
+      <div class="kpi-value currency" id="kpi-unval">—</div>
+      <div class="kpi-sub" id="kpi-unval-sub">&nbsp;</div>
     </div>
   </div>
 
@@ -1621,11 +1645,8 @@
      still at Lead or Outreach has expressed no interest, so it contributes $0
      no matter what its Est. Value says. The excluded list price is named here
      so the smaller headline is never mistaken for a sync error. */
-  var unvalNote = (kpis.unvalidated_count || 0) > 0
-    ? ` Excludes $${fmtCurrency(kpis.unvalidated_monthly || 0)}/mo of list price across `
-      + `${kpis.unvalidated_count} record${kpis.unvalidated_count === 1 ? '' : 's'} `
-      + `at Lead or Outreach, where nobody has expressed interest yet.`
-    : '';
+  var unvalCount = kpis.unvalidated_count || 0;
+  var unvalNote = unvalCount > 0 ? ' Everything with no interest yet is carried as Not Yet Forecast.' : '';
   var nurtureNote = (kpis.nurture_count || 0) > 0
     ? ` Includes $${fmtCurrency(kpis.nurture_monthly || 0)} from `
       + `${kpis.nurture_count} parked deal${kpis.nurture_count === 1 ? '' : 's'} in Nurture.`
@@ -1633,6 +1654,14 @@
   document.getElementById('kpi-pipeline-sub').textContent =
     `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every deal that has shown `
     + `interest closed. Unsigned estimate, not revenue.${nurtureNote}${unvalNote}`;
+
+  /* The excluded list price gets its own headline card so it stays visible next
+     to the forecast it was pulled out of. Named as what it is, not forecast. */
+  document.getElementById('kpi-unval').textContent = fmtCurrency(kpis.unvalidated_monthly || 0);
+  document.getElementById('kpi-unval-sub').textContent = unvalCount > 0
+    ? `List price behind ${unvalCount} record${unvalCount === 1 ? '' : 's'} at Lead or Outreach. `
+      + `Held at zero until someone says they want to hear the offer.`
+    : 'Every open record has expressed interest, so nothing is being held back.';
 
   /* ─── TOP LEADS ─── */
   /* Aaron's curated working set. The 10-20 range is his own target, reported
@@ -2573,6 +2602,17 @@
     'A record at Lead or Outreach is excluded entirely, because a name on a list is not a '
     + 'forecast. Every Est. Value here is a monthly figure, so the annual number is this x12. '
     + 'Nothing here is committed money, and a record with no Est. Value set does not appear.'
+  ));
+
+  wire(cardOf('kpi-unval'), () => drillRecords(
+    'Not Yet Forecast',
+    `${money(kpis.unvalidated_monthly || 0)} a month of list price across `
+    + `${kpis.unvalidated_count || 0} record${(kpis.unvalidated_count || 0) === 1 ? '' : 's'}, `
+    + `all held at zero.`,
+    r => r.is_open && r.is_forecastable === false && r.est_monthly > 0,
+    'These are at Lead or Outreach, so nobody has said whether they want to hear the offer. '
+    + 'The figure is what they would be worth at list price, kept out of the forecast until '
+    + 'one of them responds.'
   ));
 
   /* ── Top Leads cards ── */
