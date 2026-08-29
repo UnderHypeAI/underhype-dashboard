@@ -934,6 +934,10 @@
   @media (max-width: 640px) {
     .collapse-toggle { display: flex; }
     .collapse-body.is-collapsed { display: none; }
+    /* A shut block loses its content's bottom margin, so the bar carries it.
+       Modules already have their own padding, so exclude those. */
+    .collapse-toggle[aria-expanded="false"] { margin-bottom: 28px; }
+    .module .collapse-toggle[aria-expanded="false"] { margin-bottom: 0; }
     /* A collapsed module is just a bar, so drop the roomy padding. */
     .module.is-shut { padding: 16px 14px; margin-bottom: 20px; }
     .module.is-shut .module-head { margin-bottom: 0; }
@@ -1104,10 +1108,12 @@
 
   <!-- 1b. NEEDS ATTENTION -->
   <div class="section-title">Where Things Stand</div>
+  <div class="collapse-body" data-collapse="threads">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Open Threads, Quietest First</div>
     <div id="open-threads-table"></div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- 1b1. GOODWILL -->
   <div class="module" id="goodwill-module">
@@ -3060,6 +3066,22 @@
           a ? `${num(a)} active` : null,
           (g && g !== '0') ? `${num(g)} clients generated` : null,
         ]) || 'Channels that can put UnderHype in front of new clients.';
+      },
+      'threads': () => {
+        /* Read the rendered table so the bar cannot drift from it. The table
+           is already sorted longest-quiet first. */
+        const cells = Array.prototype.map.call(
+          document.querySelectorAll('#open-threads-table tbody tr td:first-child'),
+          (td) => td.textContent.trim()
+        );
+        if (!cells.length) return 'No open threads.';
+        const never = cells.filter(t => t === 'not logged').length;
+        const dated = cells.filter(t => t !== 'not logged');
+        return join([
+          `${num(cells.length)} open threads`,
+          dated.length ? `quietest ${num(dated[0])}` : null,
+          never ? `${num(never)} never logged` : null,
+        ]);
       },
       'traffic': () => {
         const u = val('kpi-traffic-users'), s = val('kpi-traffic-sessions');
