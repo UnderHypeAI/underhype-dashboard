@@ -548,6 +548,45 @@
   }
 
 
+  /* ─── COLLAPSIBLE SECTIONS (mobile only) ───────────────────────────────
+     Desktop has room for everything, so the toggle never appears above
+     640px and the body is never hidden there. On a phone the heavy blocks
+     start shut. The bar keeps the headline numbers visible so collapsing
+     never costs signal. */
+  .collapse-toggle {
+    display: none; /* desktop: no toggle at all */
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 10px 0 0;
+    padding: 11px 13px;
+    background: rgba(255, 255, 255, 0.022);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .collapse-toggle:active { background: rgba(255, 255, 255, 0.05); }
+  .collapse-summary {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    min-width: 0;
+  }
+  .collapse-summary .num { color: var(--text-primary); font-weight: 600; }
+  .collapse-action {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    color: var(--accent-light);
+    white-space: nowrap;
+  }
+
   /* ─── RESPONSIVE ─── */
   @media (max-width: 900px) {
     .grid-4 { grid-template-columns: repeat(2, 1fr); }
@@ -891,6 +930,16 @@
     .mini-table td { grid-template-columns: 44% 1fr; gap: 8px; }
   }
 
+  /* Mobile collapse. Kept last so it wins on equal specificity. */
+  @media (max-width: 640px) {
+    .collapse-toggle { display: flex; }
+    .collapse-body.is-collapsed { display: none; }
+    /* A collapsed module is just a bar, so drop the roomy padding. */
+    .module.is-shut { padding: 16px 14px; margin-bottom: 20px; }
+    .module.is-shut .module-head { margin-bottom: 0; }
+    .module.is-shut .collapse-toggle { margin-bottom: 0; }
+  }
+
 </style>
 </head>
 <body>
@@ -1010,6 +1059,7 @@
       <div class="module-title">Top Leads</div>
       <div class="module-tag">Working Set</div>
     </div>
+    <div class="collapse-body" data-collapse="top-leads">
     <div class="module-sub">The named prospects you are actively working. You keep this list
       between 10 and 20. Everything else in the pipeline is still tracked, just not on deck.</div>
     <div class="grid-4">
@@ -1049,6 +1099,7 @@
       <div class="card-title">Who Is On Deck, Weakest Web Presence First</div>
       <div id="top-leads-table"></div>
     </div>
+    </div><!-- /collapse-body -->
   </div>
 
   <!-- 1b. NEEDS ATTENTION -->
@@ -1149,6 +1200,7 @@
       <div class="module-title">Go To Market Partners</div>
       <div class="module-tag">Channel</div>
     </div>
+    <div class="collapse-body" data-collapse="partners">
     <div class="module-sub" id="partner-scope-note">Channels that can put UnderHype in front of new
       clients: MSPs, marketing agencies, commercial leasing and property managers, chambers.
       People who deliver work with you and the platforms you build on are tracked in Notion but
@@ -1185,6 +1237,7 @@
       <div class="card-title">Partner Detail</div>
       <div id="partners-table"></div>
     </div>
+    </div><!-- /collapse-body -->
   </div>
 
   <!-- 5. REVENUE OVERVIEW -->
@@ -1231,6 +1284,7 @@
 
   <!-- WEBSITE TRAFFIC -->
   <div class="section-title">Website Traffic</div>
+  <div class="collapse-body" data-collapse="traffic">
   <div id="traffic-unavailable" style="display:none;">
     <div class="placeholder-card">
       <div class="placeholder-icon">
@@ -1282,6 +1336,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /collapse-body -->
 
   <div class="grid-2" style="margin-top: 16px;">
     <!-- FINANCIAL OVERVIEW PLACEHOLDER -->
@@ -2964,6 +3019,105 @@
   (function () {
     const st = document.getElementById('sync-time');
     if (st) st.textContent += ' \u00b7 click any figure to see the records behind it';
+  })();
+
+  /* ─── MOBILE COLLAPSE ─────────────────────────────────────────────────────
+     The card-heavy blocks start shut on a phone. Runs last, after every
+     render, so each bar can read the numbers already on the page.
+     Desktop is untouched: the toggle is display:none above 640px and the
+     body is never hidden there, so widening the window always reveals
+     everything regardless of the collapsed class. */
+  (function () {
+    const MOBILE = '(max-width: 640px)';
+
+    /* Read a rendered KPI value straight off the page. */
+    const val = (id) => {
+      const el = document.getElementById(id);
+      const t = el ? el.textContent.trim() : '';
+      if (!t || t === '\u2014' || t === '\u00a0') return null;
+      /* The $ on a currency KPI comes from a ::before, so textContent
+         alone would render "3,300" and read like a count. */
+      return el.classList.contains('currency') ? '$' + t : t;
+    };
+    const num = (t) => `<span class="num">${esc(t)}</span>`;
+    const join = (parts) => parts.filter(Boolean).join(' \u00b7 ');
+
+    /* A collapsed block must still say what is inside it, otherwise hiding
+       it costs signal. Each summary is the block's headline, nothing more. */
+    const SUMMARY = {
+      'top-leads': () => {
+        const c = val('kpi-top-count'), m = val('kpi-top-monthly');
+        return join([
+          c ? `${num(c)} on deck` : null,
+          m ? `${num(m)} if all closed` : null,
+        ]) || 'Your working set of named prospects.';
+      },
+      'partners': () => {
+        const p = val('kpi-partners'), a = val('kpi-partner-active'),
+              g = val('kpi-partner-clients');
+        return join([
+          p ? `${num(p)} partners` : null,
+          a ? `${num(a)} active` : null,
+          (g && g !== '0') ? `${num(g)} clients generated` : null,
+        ]) || 'Channels that can put UnderHype in front of new clients.';
+      },
+      'traffic': () => {
+        const u = val('kpi-traffic-users'), s = val('kpi-traffic-sessions');
+        if (!u && !s) return 'Google Analytics figures for underhype.ai.';
+        return join([
+          u ? `${num(u)} visitors` : null,
+          s ? `${num(s)} sessions` : null,
+        ]);
+      },
+    };
+
+    document.querySelectorAll('.collapse-body[data-collapse]').forEach(body => {
+      const key = body.getAttribute('data-collapse');
+      const mod = body.closest('.module');
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'collapse-toggle';
+      if (!body.id) body.id = `collapse-${key}`;
+      btn.setAttribute('aria-controls', body.id);
+
+      const sum = document.createElement('span');
+      sum.className = 'collapse-summary';
+      try {
+        sum.innerHTML = (SUMMARY[key] || (() => ''))();
+      } catch (e) {
+        sum.textContent = '';
+      }
+      const act = document.createElement('span');
+      act.className = 'collapse-action';
+      btn.appendChild(sum);
+      btn.appendChild(act);
+      body.parentNode.insertBefore(btn, body);
+
+      const paint = (open) => {
+        body.classList.toggle('is-collapsed', !open);
+        if (mod) mod.classList.toggle('is-shut', !open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        act.textContent = open ? 'Hide' : 'Show';
+      };
+
+      /* Default shut, but only on a phone. */
+      let open = !window.matchMedia(MOBILE).matches;
+      paint(open);
+
+      btn.addEventListener('click', () => {
+        open = !open;
+        paint(open);
+        /* Chart.js measures its canvas at build time. Anything built inside a
+           display:none parent comes out zero-sized, so re-measure on reveal. */
+        if (open && window.Chart && typeof Chart.getChart === 'function') {
+          body.querySelectorAll('canvas').forEach(cv => {
+            const ch = Chart.getChart(cv);
+            if (ch) { try { ch.resize(); } catch (e) {} }
+          });
+        }
+      });
+    });
   })();
 
 })();
