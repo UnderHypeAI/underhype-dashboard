@@ -488,6 +488,65 @@
     transform: translateX(-3px);
   }
 
+  /* ─── GOODWILL AGING ─────────────────────────────────────────────────────
+     One colour carries the whole aging signal: the existing --warning yellow.
+     Everything else stays neutral so the loud state is the only thing that
+     pulls the eye. Warm deliveries are deliberately dim: nothing to do yet. */
+  /* Age and flag are wrapped together so the mobile card treats them as one
+     field. Two separate grid items left the flag orphaned on its own line. */
+  .gw-agewrap {
+    display: inline-block;
+    line-height: 1.9;
+  }
+  .gw-age {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  /* One hue, four intensities, so the eye ranks them without a legend:
+     nothing to do yet, act now, already slipping, and you let it go. */
+  .gw-age.warm    { color: var(--text-dim); }
+  .gw-age.window  { color: var(--warning); }
+  .gw-age.cold    { color: rgba(250, 204, 21, 0.55); }
+  .gw-age.undated { color: var(--text-dim); font-style: italic; }
+  /* The failure mode Aaron is trying to catch: a real favour delivered, never
+     asked about, now past the useful window. This is the only loud state. */
+  .gw-row-stale td { background: rgba(250, 204, 21, 0.07); }
+  .gw-row-stale td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+  .gw-row-stale .gw-age {
+    color: var(--warning);
+    font-weight: 600;
+  }
+  .gw-flag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--warning);
+    color: #0f0e0c;
+    font-family: var(--font-body);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: 1px;
+  }
+  .gw-gave {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .gw-callout {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(250, 204, 21, 0.35);
+    background: rgba(250, 204, 21, 0.06);
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+
 
   /* ─── RESPONSIVE ─── */
   @media (max-width: 900px) {
@@ -773,6 +832,16 @@
     /* Rows are the tap target now, so make that obvious and comfortable. */
     .drill-row { position: relative; }
     .drill-row:active { background: #201e1c; }
+
+    /* A stale goodwill row is a card here, not a row of cells, so the loud
+       state moves onto the card instead of tinting each cell separately. */
+    .gw-row-stale td { background: none; }
+    .gw-row-stale td:first-child { box-shadow: none; }
+    .gw-row-stale {
+      border-color: rgba(250, 204, 21, 0.45) !important;
+      background: rgba(250, 204, 21, 0.07) !important;
+      box-shadow: inset 3px 0 0 var(--warning);
+    }
   }
 
   @media (max-width: 560px) {
@@ -987,6 +1056,38 @@
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Open Threads, Quietest First</div>
     <div id="open-threads-table"></div>
+  </div>
+
+  <!-- 1b1. GOODWILL -->
+  <div class="module" id="goodwill-module">
+    <div class="module-head">
+      <div class="module-title">Goodwill</div>
+      <div class="module-tag">Unspent Capital</div>
+    </div>
+    <div class="module-sub">Free work you have already delivered, and whether you have spent the
+      goodwill it earned. Tracked with the Free Work Delivered checkbox on a Pipeline record.
+      Nothing here is a task or a deadline. It is a standing view of who owes you a hearing.</div>
+    <div class="grid-3">
+      <div class="kpi-card drill" id="kpi-gw-banked-card">
+        <div class="kpi-label">Goodwill Banked</div>
+        <div class="kpi-value" id="kpi-gw-banked">&mdash;</div>
+        <div class="kpi-sub" id="kpi-gw-banked-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-gw-flight-card">
+        <div class="kpi-label">Asks In Flight</div>
+        <div class="kpi-value" id="kpi-gw-flight">&mdash;</div>
+        <div class="kpi-sub" id="kpi-gw-flight-sub">&nbsp;</div>
+      </div>
+      <div class="kpi-card drill" id="kpi-gw-recip-card">
+        <div class="kpi-label">Reciprocated</div>
+        <div class="kpi-value" id="kpi-gw-recip">&mdash;</div>
+        <div class="kpi-sub" id="kpi-gw-recip-sub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Banked Goodwill, Oldest Delivery First</div>
+      <div id="goodwill-table"></div>
+    </div>
   </div>
 
   <!-- 1b2. INBOUND SIGNALS -->
@@ -2388,6 +2489,144 @@
 
   const byId = (id) => records.find(r => r.id === id);
 
+  /* ─── GOODWILL ──────────────────────────────────────────────────────────────
+     Free work already delivered, and whether the goodwill it earned has been
+     spent. The whole point is catching one specific failure: doing someone a
+     real favour and then never circling back, so the goodwill evaporates.
+     Aging is the signal. Nothing here assigns a task or sets a date. */
+  const goodwill = data.goodwill || null;
+  const gwRecords = (goodwill && goodwill.records) || [];
+  const gwBanked = (goodwill && goodwill.banked_records) || [];
+  const GW_WINDOW_MAX = (goodwill && goodwill.thresholds && goodwill.thresholds.window_max) || 45;
+  const GW_WARM_MAX = (goodwill && goodwill.thresholds && goodwill.thresholds.warm_max) || 14;
+
+  const gwAgeTxt = (d) => d === null || d === undefined ? 'no date recorded'
+    : d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+
+  /* A card for one goodwill record. Reuses the standard record card so the
+     drill-down looks and behaves like every other one, then puts the goodwill
+     specifics on top, since that is what you opened it to read. */
+  function goodwillCard(g) {
+    const base = byId(g.id);
+    let f = '';
+    f += field('Business', g.business);
+    f += field('Delivered', g.delivered || 'No date recorded');
+    f += field('Days Since', gwAgeTxt(g.days_since));
+    f += field('Ask Status', g.ask);
+    f += field('Stage', g.stage);
+    f += field('Billing', g.billing_status);
+    if (g.est_monthly) f += field('Est. Value / Month', money(g.est_monthly));
+    f += contactField('Phone', g.phone, 'tel');
+    f += contactField('Email', g.email, 'mailto');
+
+    let html = `<div class="rec">
+      <div class="rec-head">
+        <div class="rec-name">${esc(g.contact || g.name)}</div>
+        <div class="gw-age ${esc(g.band)}">${esc(gwAgeTxt(g.days_since))}${g.stale ? '<span class="gw-flag">Going Cold</span>' : ''}</div>
+      </div>
+      <div class="rec-fields">${f}</div>`;
+    if (g.gave) {
+      html += `<div class="rec-note"><div class="rec-note-label">What You Gave Them</div>${esc(g.gave)}</div>`;
+    }
+    if (g.next_step) {
+      html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(g.next_step)}</div>`;
+    }
+    html += actionBar(base || g, g.business || g.name);
+    return html + '</div>';
+  }
+
+  function drillGoodwill(title, subtitle, list, hint) {
+    openDrill(title, subtitle, renderList(list, goodwillCard,
+      'No records match this figure.', hint));
+  }
+
+  (function renderGoodwill() {
+    const mod = document.getElementById('goodwill-module');
+    const el = document.getElementById('goodwill-table');
+    if (!mod || !el) return;
+
+    // An older data.json from a traffic-only or signals-only refresh has no
+    // goodwill block at all. Say so rather than rendering a silent zero.
+    if (!goodwill) {
+      document.getElementById('kpi-gw-banked-sub').textContent = 'Not in this data file.';
+      el.innerHTML = '<div class="empty-state">This data file predates the Goodwill module. '
+        + 'Run a full sync to populate it.</div>';
+      return;
+    }
+
+    const k = goodwill.kpis || {};
+    const stale = gwBanked.filter(g => g.stale);
+    const inWindow = gwBanked.filter(g => g.band === 'window');
+
+    document.getElementById('kpi-gw-banked').textContent = k.banked || 0;
+    document.getElementById('kpi-gw-flight').textContent = k.in_flight || 0;
+    document.getElementById('kpi-gw-recip').textContent = k.reciprocated || 0;
+
+    document.getElementById('kpi-gw-banked-sub').textContent = k.banked
+      ? (stale.length
+        ? `${stale.length} past ${GW_WINDOW_MAX} days and never asked.`
+        : (inWindow.length
+          ? `${inWindow.length} in the ${GW_WARM_MAX + 1} to ${GW_WINDOW_MAX} day window.`
+          : 'None aged past the window yet.'))
+      : 'Nothing unspent.';
+    document.getElementById('kpi-gw-flight-sub').textContent = k.in_flight
+      ? 'Asked, waiting on an answer.'
+      : 'No ask outstanding.';
+    document.getElementById('kpi-gw-recip-sub').textContent =
+      goodwill.total_delivered
+        ? `Of ${goodwill.total_delivered} free ${goodwill.total_delivered === 1 ? 'delivery' : 'deliveries'}`
+        + (goodwill.declined ? `, ${goodwill.declined} declined.` : '.')
+        : 'No free work logged yet.';
+
+    if (!gwBanked.length) {
+      el.innerHTML = goodwill.total_delivered
+        ? '<div class="empty-state">No unspent goodwill. Every free delivery on record has '
+          + 'already been asked about or answered.</div>'
+        : '<div class="empty-state">No free work logged yet. Check Free Work Delivered on a '
+          + 'Pipeline record in Notion, add the date and a short summary, and it will show up here.</div>';
+      return;
+    }
+
+    let html = '<table class="mini-table"><thead><tr><th>Contact</th><th>Business</th>'
+      + '<th>What You Gave Them</th><th style="white-space:nowrap;">Since Delivery</th>'
+      + '<th style="white-space:nowrap;">Ask Status</th></tr></thead><tbody>';
+    gwBanked.forEach(g => {
+      html += `<tr class="${g.stale ? 'gw-row-stale' : ''}">
+        <td class="name">${esc(g.contact || g.name)}</td>
+        <td style="font-size:12px;">${esc(g.business || '\u2014')}</td>
+        <td class="gw-gave">${esc(truncate(g.gave || '\u2014', 150))}</td>
+        <td><span class="gw-agewrap"><span class="gw-age ${esc(g.band)}">${esc(gwAgeTxt(g.days_since))}</span>`
+        + `${g.stale ? '<span class="gw-flag">Going Cold</span>' : ''}</span></td>
+        <td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${esc(g.ask)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+
+    // The aging legend explains the bands in Aaron's own terms rather than
+    // making him remember what a colour means.
+    html += `<div class="kpi-sub" style="margin-top:18px;">`
+      + `Under ${GW_WARM_MAX + 1} days is still warm, so leave it alone. `
+      + `${GW_WARM_MAX + 1} to ${GW_WINDOW_MAX} days is the window where an ask lands best. `
+      + `Past ${GW_WINDOW_MAX} days it is going cold: ask now or let it go. `
+      + `Click any row to open the record. Nothing here is a deadline or an assignment.</div>`;
+
+    if (stale.length) {
+      html += `<div class="gw-callout"><strong>${stale.length} ${stale.length === 1 ? 'delivery has' : 'deliveries have'} `
+        + `sat past ${GW_WINDOW_MAX} days with no ask made:</strong> `
+        + esc(stale.map(g => g.contact || g.name).join(', '))
+        + `. That is real work already given away. Either ask for the business, an introduction, `
+        + `or a referral, or mark it Declined and stop carrying it.</div>`;
+    }
+    if (goodwill.undated) {
+      html += `<div class="kpi-sub" style="margin-top:12px;">`
+        + `${goodwill.undated} ${goodwill.undated === 1 ? 'record has' : 'records have'} `
+        + `Free Work Delivered checked but no Free Work Date, so ${goodwill.undated === 1 ? 'it cannot' : 'they cannot'} be aged.</div>`;
+    }
+
+    el.innerHTML = html;
+    labelTables(el);
+  })();
+
   /* ─── INBOUND SIGNALS ───────────────────────────────────────────────────────
      A state view of what arrived, not a second inbox and not a task queue.
      Gmail is a better place to read and reply. What this earns its keep on is
@@ -2600,6 +2839,29 @@
 
   wireTableRows('active-clients-table', activeClients,
     (c) => c && records.find(r => r.name === c.name), recordCard);
+
+  /* The goodwill table carries its own record shape, so it drills to the
+     goodwill card rather than the generic pipeline one. */
+  wireTableRows('goodwill-table', gwBanked, (g) => g, goodwillCard);
+
+  /* Goodwill KPI cards */
+  wire(cardOf('kpi-gw-banked'), () => drillGoodwill(
+    'Goodwill Banked',
+    'Free work delivered where you have not yet made an ask. This is unspent capital.',
+    gwBanked,
+    'Oldest delivery first. Deciding when to ask is yours; this only shows what is sitting there.'));
+
+  wire(cardOf('kpi-gw-flight'), () => drillGoodwill(
+    'Asks In Flight',
+    'You delivered free work, you made an ask, and the answer is still outstanding.',
+    gwRecords.filter(g => !g.banked && g.ask.indexOf('Asked') === 0),
+    'Asked for their business, a referral, or an introduction.'));
+
+  wire(cardOf('kpi-gw-recip'), () => drillGoodwill(
+    'Reciprocated',
+    'Free work that came back to you as business, a referral, or an introduction.',
+    gwRecords.filter(g => g.ask === 'Reciprocated'),
+    'Your actual conversion on generosity.'));
 
   wireTableRows('partners-table', partnerRecords, (p) => p, partnerCard);
 
