@@ -1149,30 +1149,37 @@
 
   <!-- 1b2. INBOUND SIGNALS -->
   <div class="section-title">Inbound Signals</div>
+  <div class="collapse-body" data-collapse="signals">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">What Came In, Last 45 Days</div>
     <div id="signals-body"></div>
     <div id="signals-health"></div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- 1c. ACTIVE ENGAGEMENTS -->
   <div class="section-title">Active Engagements</div>
+  <div class="collapse-body" data-collapse="active">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Every Client Currently Being Served</div>
     <div id="active-clients-table"></div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- 2. PIPELINE FUNNEL -->
   <div class="section-title">Pipeline Funnel</div>
+  <div class="collapse-body" data-collapse="funnel">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Deals by Stage</div>
     <div id="funnel-container"></div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- 3. ENGAGEMENT MODEL + 6. LEAD SOURCES -->
   <div class="grid-2">
     <div>
       <div class="section-title">Client Engagement</div>
+      <div class="collapse-body" data-collapse="engagement">
       <div class="card">
         <div class="card-title">All Records by Engagement Model</div>
         <div class="chart-wrap" style="max-width: 280px; margin: 0 auto;">
@@ -1180,9 +1187,11 @@
         </div>
         <div id="engagement-legend" style="margin-top: 16px;"></div>
       </div>
+      </div><!-- /collapse-body -->
     </div>
     <div>
       <div class="section-title">Lead Sources</div>
+      <div class="collapse-body" data-collapse="leadsrc">
       <div class="card">
         <div class="card-title">Pipeline Lead Distribution</div>
         <div class="chart-wrap" style="max-width: 280px; margin: 0 auto;">
@@ -1190,15 +1199,18 @@
         </div>
         <div id="leads-legend" style="margin-top: 16px;"></div>
       </div>
+      </div><!-- /collapse-body -->
     </div>
   </div>
 
   <!-- 3b. PROSPECT QUALIFICATION -->
   <div class="section-title">Prospect Qualification</div>
+  <div class="collapse-body" data-collapse="qualification">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Web Presence of Everyone in the Pipeline</div>
     <div id="web-presence-container"></div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- 4. PARTNERSHIPS (own module — separate flow from client work) -->
   <div class="module" id="partnerships-module">
@@ -1248,6 +1260,7 @@
 
   <!-- 5. REVENUE OVERVIEW -->
   <div class="section-title">Revenue Overview</div>
+  <div class="collapse-body" data-collapse="revenue">
   <div class="card" style="margin-bottom: 32px;">
     <div class="card-title">Cash Only. Free Pilots And Trades Count As Zero.</div>
     <div class="revenue-grid">
@@ -1266,8 +1279,10 @@
     </div>
     <div class="kpi-sub" id="rev-note" style="margin-top:20px;">&nbsp;</div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- PLACEHOLDERS ROW -->
+  <div class="collapse-body" data-collapse="pending-a">
   <div class="grid-2">
     <!-- 7. RETENTION PLACEHOLDER -->
     <div class="placeholder-card">
@@ -1287,6 +1302,7 @@
       <div class="placeholder-desc">CSAT score, NPS, and recent client feedback will appear here.</div>
     </div>
   </div>
+  </div><!-- /collapse-body -->
 
   <!-- WEBSITE TRAFFIC -->
   <div class="section-title">Website Traffic</div>
@@ -1344,6 +1360,7 @@
   </div>
   </div><!-- /collapse-body -->
 
+  <div class="collapse-body" data-collapse="pending-b">
   <div class="grid-2" style="margin-top: 16px;">
     <!-- FINANCIAL OVERVIEW PLACEHOLDER -->
     <div class="placeholder-card">
@@ -1354,6 +1371,7 @@
       <div class="placeholder-desc">Account balance, P&amp;L summary, and cash flow will appear here.</div>
     </div>
   </div>
+  </div><!-- /collapse-body -->
 
 </div>
 
@@ -3083,6 +3101,72 @@
           never ? `${num(never)} never logged` : null,
         ]);
       },
+      'signals': () => {
+        const c = (typeof signals === 'object' && signals && signals.counts) || null;
+        if (!c) return 'What came in over the last 45 days.';
+        const inbound = (c.matched || 0) + (c.unknown_local || 0) + (c.unknown_other || 0);
+        return join([
+          `${num(String(inbound))} inbound in 45 days`,
+          c.matched ? `${num(String(c.matched))} from the CRM` : null,
+          c.linkedin ? `${num(String(c.linkedin))} LinkedIn` : null,
+        ]);
+      },
+      'active': () => {
+        const n = activeClients.length;
+        if (!n) return 'Every client currently being served.';
+        const unpaid = kpis.unpaid_active_clients || 0;
+        return join([
+          `${num(String(n))} being served`,
+          unpaid ? `${num(String(unpaid))} unpaid` : 'all paying',
+        ]);
+      },
+      'funnel': () => {
+        const ent = Object.entries(funnel).filter(([, v]) => v > 0);
+        if (!ent.length) return 'Deals by stage.';
+        const total = ent.reduce((a, [, v]) => a + v, 0);
+        const top = ent.slice().sort((a, b) => b[1] - a[1])[0];
+        return join([
+          `${num(String(total))} records`,
+          `${num(String(top[1]))} in ${top[0]}`,
+        ]);
+      },
+      'engagement': () => {
+        const ent = Object.entries(engagementModels);
+        if (!ent.length) return 'All records by engagement model.';
+        const top = ent.slice().sort((a, b) => (b[1].count || 0) - (a[1].count || 0))[0];
+        if (ent.length === 1) return `all ${num(String(top[1].count || 0))} are ${top[0]}`;
+        return join([
+          `${num(String(ent.length))} models`,
+          `${top[0]} leads with ${num(String(top[1].count || 0))}`,
+        ]);
+      },
+      'leadsrc': () => {
+        const ent = Object.entries(leadSources).filter(([, v]) => v > 0);
+        if (!ent.length) return 'Where pipeline records came from.';
+        const total = ent.reduce((a, [, v]) => a + v, 0);
+        const top = ent.slice().sort((a, b) => b[1] - a[1])[0];
+        return `${top[0]} is ${num(String(top[1]))} of ${num(String(total))}`;
+      },
+      'qualification': () => {
+        /* Same arithmetic the block itself prints, so the bar cannot disagree
+           with the sentence under the bars. */
+        const keys = Object.keys(webPresence).filter(k => (webPresence[k] || 0) > 0);
+        if (!keys.length) return 'Web presence of everyone in the pipeline.';
+        const total = keys.reduce((a, k) => a + webPresence[k], 0);
+        const weak = (webPresence['None'] || 0) + (webPresence['Social Only'] || 0)
+                   + (webPresence['Booking Tool Only'] || 0);
+        return `${num(String(weak))} of ${num(String(total))} have no real website`;
+      },
+      'revenue': () => {
+        const c = val('rev-combined'), m = val('rev-mrr');
+        if (!c && !m) return 'Cash only. Free pilots and trades count as zero.';
+        return join([
+          c ? `${num(c)} collected` : null,
+          m ? `${num(m)} recurring` : null,
+        ]);
+      },
+      'pending-a': () => 'Retention and CSAT tracking not connected yet.',
+      'pending-b': () => 'Mercury and QuickBooks not connected yet.',
       'traffic': () => {
         const u = val('kpi-traffic-users'), s = val('kpi-traffic-sessions');
         if (!u && !s) return 'Google Analytics figures for underhype.ai.';
