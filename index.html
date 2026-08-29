@@ -511,12 +511,6 @@
   .gw-age.undated { color: var(--text-dim); font-style: italic; }
   /* The failure mode Aaron is trying to catch: a real favour delivered, never
      asked about, now past the useful window. This is the only loud state. */
-  .gw-row-stale td { background: rgba(250, 204, 21, 0.07); }
-  .gw-row-stale td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
-  .gw-row-stale .gw-age {
-    color: var(--warning);
-    font-weight: 600;
-  }
   .gw-flag {
     display: inline-block;
     margin-left: 8px;
@@ -530,11 +524,6 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     vertical-align: 1px;
-  }
-  .gw-gave {
-    font-size: 12px;
-    color: var(--text-secondary);
-    line-height: 1.5;
   }
   .gw-callout {
     margin-top: 16px;
@@ -872,15 +861,6 @@
     .drill-row { position: relative; }
     .drill-row:active { background: #201e1c; }
 
-    /* A stale goodwill row is a card here, not a row of cells, so the loud
-       state moves onto the card instead of tinting each cell separately. */
-    .gw-row-stale td { background: none; }
-    .gw-row-stale td:first-child { box-shadow: none; }
-    .gw-row-stale {
-      border-color: rgba(250, 204, 21, 0.45) !important;
-      background: rgba(250, 204, 21, 0.07) !important;
-      box-shadow: inset 3px 0 0 var(--warning);
-    }
   }
 
   @media (max-width: 560px) {
@@ -1141,10 +1121,7 @@
         <div class="kpi-sub" id="kpi-gw-recip-sub">&nbsp;</div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">Banked Goodwill, Oldest Delivery First</div>
-      <div id="goodwill-table"></div>
-    </div>
+    <div id="goodwill-note"></div>
   </div>
 
   <!-- 1b2. INBOUND SIGNALS -->
@@ -2621,7 +2598,7 @@
 
   (function renderGoodwill() {
     const mod = document.getElementById('goodwill-module');
-    const el = document.getElementById('goodwill-table');
+    const el = document.getElementById('goodwill-note');
     if (!mod || !el) return;
 
     // An older data.json from a traffic-only or signals-only refresh has no
@@ -2666,28 +2643,10 @@
       return;
     }
 
-    let html = '<table class="mini-table"><thead><tr><th>Contact</th><th>Business</th>'
-      + '<th>What You Gave Them</th><th style="white-space:nowrap;">Since Delivery</th>'
-      + '<th style="white-space:nowrap;">Ask Status</th></tr></thead><tbody>';
-    gwBanked.forEach(g => {
-      html += `<tr class="${g.stale ? 'gw-row-stale' : ''}">
-        <td class="name">${esc(g.contact || g.name)}</td>
-        <td style="font-size:12px;">${esc(g.business || '\u2014')}</td>
-        <td class="gw-gave">${esc(truncate(g.gave || '\u2014', 150))}</td>
-        <td><span class="gw-agewrap"><span class="gw-age ${esc(g.band)}">${esc(gwAgeTxt(g.days_since))}</span>`
-        + `${g.stale ? '<span class="gw-flag">Going Cold</span>' : ''}</span></td>
-        <td style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">${esc(g.ask)}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-
-    // The aging legend explains the bands in Aaron's own terms rather than
-    // making him remember what a colour means.
-    html += `<div class="kpi-sub" style="margin-top:18px;">`
-      + `Under ${GW_WARM_MAX + 1} days is still warm, so leave it alone. `
-      + `${GW_WARM_MAX + 1} to ${GW_WINDOW_MAX} days is the window where an ask lands best. `
-      + `Past ${GW_WINDOW_MAX} days it is going cold: ask now or let it go. `
-      + `Click any row to open the record. Nothing here is a deadline or an assignment.</div>`;
+    /* The per record detail lives behind the cards now. Individual deliveries
+       are not headline material, so the module carries only the counts, the
+       aging rule and any loud signal, and the records open on click. */
+    let html = '';
 
     if (stale.length) {
       html += `<div class="gw-callout"><strong>${stale.length} ${stale.length === 1 ? 'delivery has' : 'deliveries have'} `
@@ -2702,8 +2661,15 @@
         + `Free Work Delivered checked but no Free Work Date, so ${goodwill.undated === 1 ? 'it cannot' : 'they cannot'} be aged.</div>`;
     }
 
+    // The aging rule in plain terms, so the counts above mean something without
+    // having to open anything.
+    html += `<div class="kpi-sub" style="margin-top:${stale.length || goodwill.undated ? 14 : 4}px;">`
+      + `Under ${GW_WARM_MAX + 1} days is still warm, so leave it alone. `
+      + `${GW_WARM_MAX + 1} to ${GW_WINDOW_MAX} days is the window where an ask lands best. `
+      + `Past ${GW_WINDOW_MAX} days it is going cold: ask now or let it go. `
+      + `Click a card to see the records behind it. Nothing here is a deadline or an assignment.</div>`;
+
     el.innerHTML = html;
-    labelTables(el);
   })();
 
   /* ─── INBOUND SIGNALS ───────────────────────────────────────────────────────
@@ -2919,11 +2885,8 @@
   wireTableRows('active-clients-table', activeClients,
     (c) => c && records.find(r => r.name === c.name), recordCard);
 
-  /* The goodwill table carries its own record shape, so it drills to the
-     goodwill card rather than the generic pipeline one. */
-  wireTableRows('goodwill-table', gwBanked, (g) => g, goodwillCard);
-
-  /* Goodwill KPI cards */
+  /* Goodwill KPI cards. These are the only way into the per record detail now:
+     an individual delivery is not headline material, so it lives behind a click. */
   wire(cardOf('kpi-gw-banked'), () => drillGoodwill(
     'Goodwill Banked',
     'Free work delivered where you have not yet made an ask. This is unspent capital.',
