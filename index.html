@@ -1168,14 +1168,14 @@
         <div class="kpi-sub" id="kpi-top-count-sub">&nbsp;</div>
       </div>
       <div class="kpi-card drill" id="kpi-top-monthly-card">
-        <div class="kpi-label">If All Closed / Month</div>
+        <div class="kpi-label">Forecast / Month</div>
         <div class="kpi-value currency" id="kpi-top-monthly">—</div>
-        <div class="kpi-sub">Recurring, not booked.</div>
+        <div class="kpi-sub" id="kpi-top-monthly-sub">&nbsp;</div>
       </div>
-      <div class="kpi-card drill" id="kpi-top-annual-card">
-        <div class="kpi-label">If All Closed / Year</div>
-        <div class="kpi-value currency" id="kpi-top-annual">—</div>
-        <div class="kpi-sub">Monthly x 12.</div>
+      <div class="kpi-card drill" id="kpi-top-unval-card">
+        <div class="kpi-label">Not Yet Forecast</div>
+        <div class="kpi-value currency" id="kpi-top-unval">—</div>
+        <div class="kpi-sub" id="kpi-top-unval-sub">&nbsp;</div>
       </div>
       <div class="kpi-card drill" id="kpi-top-noweb-card">
         <div class="kpi-label">No Real Website</div>
@@ -1617,15 +1617,22 @@
       : 'All active engagements are billed.';
 
   document.getElementById('kpi-pipeline').textContent = fmtCurrency(kpis.pipeline_value || 0);
-  // Long shots stay in the forecast because the label says "every open deal",
-  // but their size is called out so the headline number is never misread.
+  /* Only deals where the prospect has actually responded are counted. A record
+     still at Lead or Outreach has expressed no interest, so it contributes $0
+     no matter what its Est. Value says. The excluded list price is named here
+     so the smaller headline is never mistaken for a sync error. */
+  var unvalNote = (kpis.unvalidated_count || 0) > 0
+    ? ` Excludes $${fmtCurrency(kpis.unvalidated_monthly || 0)}/mo of list price across `
+      + `${kpis.unvalidated_count} record${kpis.unvalidated_count === 1 ? '' : 's'} `
+      + `at Lead or Outreach, where nobody has expressed interest yet.`
+    : '';
   var nurtureNote = (kpis.nurture_count || 0) > 0
     ? ` Includes $${fmtCurrency(kpis.nurture_monthly || 0)} from `
-      + `${kpis.nurture_count} long-shot deal${kpis.nurture_count === 1 ? '' : 's'} in Nurture.`
+      + `${kpis.nurture_count} parked deal${kpis.nurture_count === 1 ? '' : 's'} in Nurture.`
     : '';
   document.getElementById('kpi-pipeline-sub').textContent =
-    `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every open deal closed. `
-    + `Unsigned estimate, not revenue.${nurtureNote}`;
+    `$${fmtCurrency(kpis.pipeline_value_annual || 0)} a year if every deal that has shown `
+    + `interest closed. Unsigned estimate, not revenue.${nurtureNote}${unvalNote}`;
 
   /* ─── TOP LEADS ─── */
   /* Aaron's curated working set. The 10-20 range is his own target, reported
@@ -1640,8 +1647,21 @@
       : topCount > bandMax ? `${topCount - bandMax} above your ${bandMin} to ${bandMax} range.`
       : `Inside your ${bandMin} to ${bandMax} range.`;
 
+  /* Being on deck is not interest. A top lead only carries a dollar figure once
+     the prospect has responded, so this card is frequently $0 and that is the
+     point of it. */
+  const topForecastable = topLeadRecords.filter(r => r.is_forecastable);
+  const topUnval = topLeadRecords.filter(r => !r.is_forecastable);
   document.getElementById('kpi-top-monthly').textContent = fmtCurrency(topLeads.monthly_value || 0);
-  document.getElementById('kpi-top-annual').textContent = fmtCurrency(topLeads.annual_value || 0);
+  document.getElementById('kpi-top-unval').textContent = fmtCurrency(topLeads.unvalidated_monthly || 0);
+  document.getElementById('kpi-top-monthly-sub').textContent = topForecastable.length
+    ? `${topForecastable.length} of ${topCount} have expressed interest. `
+      + `$${fmtCurrency(topLeads.annual_value || 0)} a year.`
+    : `None of the ${topCount} has expressed interest yet, so the forecast is $0.`;
+  document.getElementById('kpi-top-unval-sub').textContent = topUnval.length
+    ? `List price across ${topUnval.length} record${topUnval.length === 1 ? '' : 's'} `
+      + `nobody has responded to. Counted as zero.`
+    : 'Every lead on deck has responded.';
 
   const THIN_WEB = new Set(['None', 'Social Only', 'Booking Tool Only']);
   const topNoWeb = topLeadRecords.filter(r => THIN_WEB.has(r.web_presence)).length;
@@ -1663,7 +1683,7 @@
     const quietTxt = (d) => d === null || d === undefined ? 'not logged'
       : d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
     let html = '<table class="mini-table"><thead><tr><th>Business</th><th>Stage</th>'
-      + '<th>Web Presence</th><th>Location</th><th>Quiet For</th><th style="text-align:right;">Monthly</th></tr></thead><tbody>';
+      + '<th>Web Presence</th><th>Location</th><th>Quiet For</th><th style="text-align:right;">Forecast / Mo</th></tr></thead><tbody>';
     topLeadRecords.forEach(r => {
       const wp = r.web_presence || '\u2014';
       const wpColor = THIN_WEB.has(r.web_presence) ? 'var(--accent-light)' : 'var(--text-secondary)';
@@ -1673,7 +1693,11 @@
         <td style="font-size:12px;color:${wpColor};">${esc(wp)}</td>
         <td style="font-size:12px;color:var(--text-muted);">${esc(r.location || '\u2014')}</td>
         <td class="mono" style="font-size:12px;color:var(--text-dim);white-space:nowrap;">${quietTxt(r.days_quiet)}</td>
-        <td class="mono" style="text-align:right;">$${fmtCurrency(r.est_monthly || 0)}/mo</td>
+        <td class="mono" style="text-align:right;${r.is_forecastable ? '' : 'color:var(--text-dim);'}">${
+          r.is_forecastable
+            ? `$${fmtCurrency(r.est_monthly || 0)}/mo`
+            : `$0 <span style="font-size:10.5px;">(list $${fmtCurrency(r.est_monthly || 0)})</span>`
+        }</td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -1690,6 +1714,8 @@
         + `The other ${topCount - reachable} cannot be contacted from here until you add one.`;
     html += `<div class="kpi-sub" style="margin-top:18px;">Flagged with the Top Lead checkbox in Notion. `
       + `Ordered by how thin their web presence is, which is the gap you sell against. `
+      + `A record at Lead or Outreach forecasts $0 because the prospect has not said they want `
+      + `to hear the offer; its list price is shown in parentheses so you can see what is parked. `
       + `Click any row to open the record and act on it. ${reachTxt} `
       + `Nothing here is a deadline or an assignment.</div>`;
     tlEl.innerHTML = html;
@@ -2028,7 +2054,10 @@
       ? `Zero is accurate. Current engagements: ${notes.join(', ')}. Converting one of these to the $300/mo managed offer is the first dollar.`
       : 'Zero is accurate. No client is currently billed.';
   } else {
-    revNote.textContent = `Counts only Billing Status = Paid. Open forecast of $${fmtCurrency(kpis.pipeline_value || 0)} is deliberately excluded.`;
+    revNote.textContent = `Counts only Billing Status = Paid. The open forecast of `
+      + `$${fmtCurrency(kpis.pipeline_value || 0)} is deliberately excluded, and so is the `
+      + `$${fmtCurrency(kpis.unvalidated_monthly || 0)} of list price behind records that have `
+      + `expressed no interest.`;
   }
 
   /* ─── WEBSITE TRAFFIC ─── */
@@ -2395,6 +2424,11 @@
     if (r.mrr) f += field('MRR', money(r.mrr));
     if (r.est_monthly) f += field('Est. Value / Month', money(r.est_monthly));
     if (r.est_annual) f += field('Est. Value / Year', money(r.est_annual));
+    // Est. Value is the raw CRM number. Whether it is allowed to count is a
+    // separate fact, so say it plainly on the record rather than only in totals.
+    if (r.est_monthly && r.is_forecastable === false) {
+      f += field('Forecast', '$0 \u2014 no interest expressed yet');
+    }
     if (r.top_lead) f += field('Top Lead', 'Yes \u2014 on deck');
     if (r.project_revenue) f += field('Project Revenue', money(r.project_revenue));
     f += field('Last Contact', r.last_contact);
@@ -2534,9 +2568,10 @@
 
   wire(cardOf('kpi-pipeline'), () => drillRecords(
     'Open Forecast Per Month',
-    'Monthly Est. Value summed across open-stage records. Unsigned estimates, not revenue.',
-    r => r.is_open && r.est_monthly > 0,
-    'Every Est. Value is now a monthly figure, so the annual number is simply this x12. '
+    'Only records where the prospect has expressed interest. Unsigned estimates, not revenue.',
+    r => r.is_forecastable && r.est_monthly > 0,
+    'A record at Lead or Outreach is excluded entirely, because a name on a list is not a '
+    + 'forecast. Every Est. Value here is a monthly figure, so the annual number is this x12. '
     + 'Nothing here is committed money, and a record with no Est. Value set does not appear.'
   ));
 
@@ -2551,16 +2586,20 @@
     isTop, TOP_HINT));
 
   wire(cardOf('kpi-top-monthly'), () => drillRecords(
-    'Top Leads, Monthly Value If All Closed',
-    `${money(topLeads.monthly_value || 0)} of recurring revenue across ${topCount} leads. None of it is booked.`,
-    isTop,
-    'A hypothetical ceiling, not a forecast of what will close.'));
+    'Top Leads That Are Actually Forecast',
+    `${money(topLeads.monthly_value || 0)} a month across `
+    + `${topForecastable.length} of ${topCount} on deck. None of it is booked.`,
+    r => isTop(r) && r.is_forecastable,
+    'These are the only leads on deck whose estimate counts, because the prospect has '
+    + 'responded. Still an unsigned estimate, not revenue.'));
 
-  wire(cardOf('kpi-top-annual'), () => drillRecords(
-    'Top Leads, Annual Value If All Closed',
-    `${money(topLeads.annual_value || 0)} a year, which is the monthly figure x12.`,
-    isTop,
-    'Same records as the monthly card, expressed annually.'));
+  wire(cardOf('kpi-top-unval'), () => drillRecords(
+    'Top Leads Not Yet Forecast',
+    `${money(topLeads.unvalidated_monthly || 0)} a month of list price across `
+    + `${topUnval.length} of ${topCount} on deck, all counted as zero.`,
+    r => isTop(r) && !r.is_forecastable,
+    'These sit at Lead or Outreach, so nobody has said they want to hear the offer. '
+    + 'Move one to Interested and its estimate starts counting.'));
 
   wire(cardOf('kpi-top-noweb'), () => drillRecords(
     'Top Leads With No Real Website',
@@ -3355,10 +3394,12 @@
        it costs signal. Each summary is the block's headline, nothing more. */
     const SUMMARY = {
       'top-leads': () => {
-        const c = val('kpi-top-count'), m = val('kpi-top-monthly');
+        const c = val('kpi-top-count'), m = val('kpi-top-monthly'),
+              u = val('kpi-top-unval');
         return join([
           c ? `${num(c)} on deck` : null,
-          m ? `${num(m)} if all closed` : null,
+          m ? `${num(m)}/mo forecast` : null,
+          u ? `${num(u)} not yet forecast` : null,
         ]) || 'Your working set of named prospects.';
       },
       'partners': () => {
