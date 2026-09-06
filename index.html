@@ -998,6 +998,88 @@
   }
   .activity-status.is-success { color: var(--success); }
   .activity-status.is-error { color: var(--danger); }
+  .email-modal { z-index: 980; }
+  .email-modal .modal { max-width: 720px; }
+  .email-form {
+    display: grid;
+    gap: 14px;
+  }
+  .email-field {
+    display: grid;
+    gap: 6px;
+  }
+  .email-label {
+    color: var(--text-secondary);
+    font-size: 9.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+  }
+  .email-input,
+  .email-select,
+  .email-body {
+    width: 100%;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: #171513;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 10px 11px;
+  }
+  .email-input[readonly] {
+    color: var(--text-secondary);
+    cursor: default;
+  }
+  .email-input:focus,
+  .email-select:focus,
+  .email-body:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .email-body {
+    min-height: 280px;
+    resize: vertical;
+  }
+  .email-template-help,
+  .email-status,
+  .email-warning {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .email-template-help,
+  .email-status { color: var(--text-secondary); }
+  .email-warning {
+    display: none;
+    border: 1px solid rgba(250, 204, 21, .28);
+    border-radius: 8px;
+    background: rgba(250, 204, 21, .06);
+    color: #e7cf72;
+    padding: 9px 11px;
+  }
+  .email-warning.show { display: block; }
+  .email-review-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+  .email-review-check input { margin-top: 2px; accent-color: var(--accent); }
+  .email-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 2px;
+  }
+  .email-actions .act[disabled] {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+  .email-status.is-success { color: var(--success); }
+  .email-status.is-error { color: var(--danger); }
   /* ─── MOBILE ──────────────────────────────────────────────────────────────
      This dashboard gets used on a phone as much as a desktop, so phone width
      is a first class layout rather than a shrunken desktop.
@@ -1017,6 +1099,12 @@
       justify-content: center;
       padding-left: 7px;
       padding-right: 7px;
+    }
+    .email-body { min-height: 250px; }
+    .email-actions .act {
+      flex: 1 1 100%;
+      justify-content: center;
+      min-height: 40px;
     }
     .mini-table thead { display: none; }
     .mini-table,
@@ -1575,6 +1663,54 @@
       <button class="modal-close" id="drill-close" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" id="drill-body"></div>
+  </div>
+</div>
+<div class="modal-backdrop email-modal" id="email-modal" role="dialog" aria-modal="true"
+  aria-labelledby="email-title">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="email-title">Compose email</div>
+        <div class="modal-sub" id="email-sub">Review every word before sending.</div>
+      </div>
+      <button class="modal-close" id="email-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form class="email-form" id="email-form">
+        <div class="email-field">
+          <label class="email-label" for="email-template">Template</label>
+          <select class="email-select" id="email-template"></select>
+          <div class="email-template-help" id="email-template-help"></div>
+        </div>
+        <div class="email-field">
+          <label class="email-label" for="email-from">From</label>
+          <input class="email-input" id="email-from" readonly>
+        </div>
+        <div class="email-field">
+          <label class="email-label" for="email-to">To</label>
+          <input class="email-input" id="email-to" readonly>
+        </div>
+        <div class="email-field">
+          <label class="email-label" for="email-subject">Subject</label>
+          <input class="email-input" id="email-subject" maxlength="160" required>
+        </div>
+        <div class="email-field">
+          <label class="email-label" for="email-body">Message</label>
+          <textarea class="email-body" id="email-body" maxlength="12000" required></textarea>
+        </div>
+        <div class="email-warning" id="email-warning" role="status"></div>
+        <label class="email-review-check">
+          <input type="checkbox" id="email-reviewed">
+          <span>I reviewed the recipient, subject, and complete message. Send exactly this version.</span>
+        </label>
+        <div class="email-status" id="email-status" role="status" aria-live="polite"></div>
+        <div class="email-actions">
+          <button type="button" class="act" id="email-mail-app">Open in mail app</button>
+          <button type="button" class="act" id="email-cancel">Cancel</button>
+          <button type="submit" class="act act-primary" id="email-send" disabled>Send email</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 <script>
@@ -2337,6 +2473,13 @@
   const modal = document.getElementById('drill-modal');
   const modalBody = document.getElementById('drill-body');
   let lastFocused = null;
+  const emailModal = document.getElementById('email-modal');
+  const emailForm = document.getElementById('email-form');
+  const emailTemplate = document.getElementById('email-template');
+  const emailReviewed = document.getElementById('email-reviewed');
+  const emailSend = document.getElementById('email-send');
+  let emailState = null;
+  let emailLastFocused = null;
 
   function closeDrill() {
     modal.classList.remove('open');
@@ -2346,7 +2489,24 @@
   document.getElementById('drill-close').addEventListener('click', closeDrill);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeDrill(); });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.classList.contains('open')) closeDrill();
+    if (e.key !== 'Escape') return;
+    if (emailModal.classList.contains('open')) closeEmail();
+    else if (modal.classList.contains('open')) closeDrill();
+  });
+
+  function closeEmail() {
+    emailModal.classList.remove('open');
+    emailState = null;
+    emailReviewed.checked = false;
+    emailSend.disabled = true;
+    if (!modal.classList.contains('open')) document.body.style.overflow = '';
+    if (emailLastFocused && emailLastFocused.focus) emailLastFocused.focus();
+  }
+
+  document.getElementById('email-close').addEventListener('click', closeEmail);
+  document.getElementById('email-cancel').addEventListener('click', closeEmail);
+  emailModal.addEventListener('click', (e) => {
+    if (e.target === emailModal) closeEmail();
   });
 
   /* ─── RESPONSIVE TABLE LABELS ───────────────────────────────────────────
@@ -2460,7 +2620,7 @@
   /* Builds the action row for a record or partner. `name` is used to fall back to
      a web search when there is no site on file, which is the usual state for the
      prospects with the weakest web presence. */
-  function actionBar(o, name) {
+  function actionBar(o, name, canCompose) {
     const phone = o.phone, email = o.email, site = o.website, notion = o.url;
     let a = '';
     if (phone) {
@@ -2468,7 +2628,12 @@
       a += actBtn('tel:' + t, 'phone', 'Call', true);
       a += actBtn('sms:' + t, 'sms', 'Text', true);
     }
-    if (email) a += actBtn('mailto:' + email, 'mail', 'Email', true);
+    if (email && canCompose && o.id) {
+      a += `<button type="button" class="act act-primary js-compose-email" `
+        + `data-record-id="${esc(o.id)}">${ICON.mail}<span>Compose</span></button>`;
+    } else if (email) {
+      a += actBtn('mailto:' + email, 'mail', 'Email', true);
+    }
     if (site) a += actBtn(site, 'globe', 'Website');
     else if (name && !/\brollup\b/i.test(name)) {
       // Search on the record's own location rather than assuming Emmett, and skip
@@ -2489,6 +2654,141 @@
     }
     return html;
   }
+
+  async function loadEmailCompose(recordId, templateId) {
+    const status = document.getElementById('email-status');
+    status.className = 'email-status';
+    status.textContent = 'Building the draft from the CRM record...';
+    emailSend.disabled = true;
+    emailSend.textContent = 'Send email';
+    delete emailSend.dataset.requestId;
+    emailTemplate.disabled = false;
+    emailReviewed.checked = false;
+    const resp = await fetch(API_BASE + '/email/compose', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        record_id: recordId,
+        template_id: templateId || 'local_business'
+      })
+    });
+    const result = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        localStorage.removeItem(SESSION_KEY);
+        showSignIn('Your secure session has expired.');
+      }
+      throw new Error(result.message || 'The email draft could not be built.');
+    }
+
+    emailState = result;
+    emailTemplate.innerHTML = result.templates.map(template =>
+      `<option value="${esc(template.id)}">${esc(template.label)}</option>`
+    ).join('');
+    emailTemplate.value = result.template.id;
+    document.getElementById('email-template-help').textContent =
+      result.template.description || '';
+    document.getElementById('email-from').value =
+      `${result.from.name} <${result.from.email}>`;
+    document.getElementById('email-to').value = result.to;
+    document.getElementById('email-subject').value = result.subject;
+    document.getElementById('email-body').value = result.body;
+    const warning = document.getElementById('email-warning');
+    warning.textContent = (result.warnings || []).join(' ');
+    warning.classList.toggle('show', Boolean(warning.textContent));
+    status.textContent = 'Draft ready. Edit it here, then confirm your review.';
+  }
+
+  document.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest && ev.target.closest('.js-compose-email');
+    if (!btn) return;
+    ev.preventDefault();
+    emailLastFocused = btn;
+    emailModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    emailModal.scrollTop = 0;
+    document.getElementById('email-title').textContent = 'Compose email';
+    document.getElementById('email-sub').textContent = 'Review every word before sending.';
+    try {
+      await loadEmailCompose(btn.dataset.recordId, 'local_business');
+      emailTemplate.focus();
+    } catch (error) {
+      const status = document.getElementById('email-status');
+      status.className = 'email-status is-error';
+      status.textContent = error.message || 'The email draft could not be built.';
+    }
+  });
+
+  emailTemplate.addEventListener('change', async () => {
+    if (!emailState) return;
+    try {
+      await loadEmailCompose(emailState.record_id, emailTemplate.value);
+    } catch (error) {
+      const status = document.getElementById('email-status');
+      status.className = 'email-status is-error';
+      status.textContent = error.message || 'The template could not be loaded.';
+    }
+  });
+
+  emailReviewed.addEventListener('change', () => {
+    emailSend.disabled = !emailReviewed.checked || !emailState;
+  });
+
+  document.getElementById('email-mail-app').addEventListener('click', () => {
+    if (!emailState) return;
+    const subject = document.getElementById('email-subject').value;
+    const body = document.getElementById('email-body').value;
+    window.location.href = `mailto:${emailState.to}`
+      + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  });
+
+  emailForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (!emailState || !emailReviewed.checked) return;
+    const subject = document.getElementById('email-subject').value.trim();
+    const body = document.getElementById('email-body').value.trim();
+    if (!subject || !body) return;
+    if (!window.confirm(`Send this email now to ${emailState.to}?`)) return;
+
+    const status = document.getElementById('email-status');
+    const requestId = emailSend.dataset.requestId || newRequestId();
+    emailSend.dataset.requestId = requestId;
+    emailSend.disabled = true;
+    emailTemplate.disabled = true;
+    status.className = 'email-status';
+    status.textContent = 'Sending through Gmail...';
+    try {
+      const resp = await fetch(API_BASE + '/email/send', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          record_id: emailState.record_id,
+          review_token: emailState.review_token,
+          request_id: requestId,
+          reviewed: true,
+          subject,
+          body
+        })
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          localStorage.removeItem(SESSION_KEY);
+          showSignIn('Your secure session has expired.');
+        }
+        throw new Error(result.message || 'Gmail could not send this email.');
+      }
+      status.className = 'email-status is-success';
+      status.textContent = `Sent to ${result.recipient} and logged for ${result.date}.`;
+      emailSend.textContent = 'Sent';
+      setTimeout(() => window.location.reload(), 1100);
+    } catch (error) {
+      status.className = 'email-status is-error';
+      status.textContent = error.message || 'Gmail could not send this email.';
+      emailSend.disabled = false;
+      emailTemplate.disabled = false;
+    }
+  });
 
   function activityLogger(r) {
     return `<div class="activity-log" data-record-id="${esc(r.id)}">
@@ -2660,7 +2960,7 @@
     if (r.notes) {
       html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(r.notes)}</div>`;
     }
-    html += actionBar(r, r.name);
+    html += actionBar(r, r.name, true);
     html += activityLogger(r);
     return html + '</div>';
   }
