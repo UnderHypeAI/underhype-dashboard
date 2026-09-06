@@ -94,6 +94,34 @@
     font-family: var(--font-mono);
     text-align: right;
   }
+  .sync-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .refresh-button {
+    appearance: none;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    padding: 7px 11px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font: 600 10px/1 var(--font-mono);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .refresh-button:hover,
+  .refresh-button:focus-visible {
+    border-color: var(--accent);
+    color: var(--text-primary);
+    outline: none;
+  }
+  .refresh-button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
   .sync-info .dot {
     display: inline-block;
     width: 6px;
@@ -710,6 +738,7 @@
     .grid-4 { grid-template-columns: 1fr; }
     .header-inner { flex-direction: column; align-items: flex-start; }
     .sync-info { text-align: left; }
+    .sync-row { justify-content: flex-start; flex-wrap: wrap; }
     .kpi-value { font-size: 26px; }
     .funnel-label { width: 110px; font-size: 10px; }
   }
@@ -1061,72 +1090,24 @@
 </style>
 </head>
 <body>
-<!-- PASSWORD GATE -->
-<div id="password-overlay" style="
+<!-- AUTHENTICATED ACCESS -->
+<div id="access-overlay" style="
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: #0a0a0a; z-index: 99999;
   display: flex; align-items: center; justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 ">
   <div style="text-align: center; max-width: 360px; padding: 20px;">
-    <div style="font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #666; margin-bottom: 24px;">Dashboard Access</div>
-    <input id="pw-input" type="password" placeholder="Enter password" autocomplete="off" style="
-      width: 100%; padding: 14px 18px; font-size: 16px;
-      background: #151515; border: 1px solid #333; border-radius: 8px;
-      color: #fff; outline: none; text-align: center;
-      box-sizing: border-box;
-    " />
-    <div id="pw-error" style="color: #ff4444; font-size: 13px; margin-top: 12px; opacity: 0; transition: opacity 0.3s;">Incorrect password</div>
-    <div style="color: #444; font-size: 12px; margin-top: 24px;">Press Enter to continue</div>
+    <div style="font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: #666; margin-bottom: 16px;">Dashboard Access</div>
+    <div id="access-status" style="color:#9a9590;font-size:14px;line-height:1.55;margin-bottom:20px;">Checking your secure session&hellip;</div>
+    <a id="access-login" href="#" style="
+      display:none; width:100%; padding:14px 18px; font-size:14px;
+      background:#C4652A; border-radius:8px; color:#fff;
+      text-decoration:none; text-align:center; box-sizing:border-box;
+    ">Sign in securely</a>
   </div>
 </div>
-<script>
-(function() {
-  var k = 'dashboard_auth', h = 'SmVzc2ljYUxlaWdo';
-
-  /* The unlock used to live in sessionStorage, which iOS clears whenever it
-     drops a Home Screen web app from memory. That meant retyping the password
-     nearly every launch. localStorage survives across launches. Private
-     browsing can make localStorage throw on write, so fall back rather than
-     leaving the gate stuck. */
-  var store = (function () {
-    try {
-      var t = '__probe__';
-      localStorage.setItem(t, '1');
-      localStorage.removeItem(t);
-      return localStorage;
-    } catch (e) {
-      return sessionStorage;
-    }
-  })();
-
-  /* Also honour an existing sessionStorage unlock so an already open tab is
-     not logged out by this change. */
-  if (store.getItem(k) === h || sessionStorage.getItem(k) === h) {
-    document.getElementById('password-overlay').style.display = 'none';
-    return;
-  }
-  var inp = document.getElementById('pw-input');
-  var err = document.getElementById('pw-error');
-  inp.focus();
-  inp.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-      if (btoa(inp.value) === h) {
-        try { store.setItem(k, h); } catch (e) { /* unlock this view anyway */ }
-        document.getElementById('password-overlay').style.display = 'none';
-      } else {
-        err.style.opacity = '1';
-        inp.value = '';
-        inp.style.borderColor = '#ff4444';
-        setTimeout(function() { err.style.opacity = '0'; inp.style.borderColor = '#333'; }, 2000);
-      }
-    }
-  });
-})();
-</script>
-<!-- END PASSWORD GATE -->
-
-</script>
+<!-- END AUTHENTICATED ACCESS -->
 
 
 <div class="container">
@@ -1140,8 +1121,10 @@
         <div class="subtitle">AI Services Dashboard</div>
       </div>
       <div class="sync-info">
-        <span class="dot"></span>
-        <span id="sync-time">Loading&hellip;</span>
+        <div class="sync-row">
+          <span><span class="dot"></span><span id="sync-time">Loading&hellip;</span></span>
+          <button class="refresh-button" id="refresh-data" type="button">Refresh</button>
+        </div>
       </div>
     </div>
   </header>
@@ -1566,15 +1549,77 @@
   const LEAD_COLORS = ['#C4652A', '#d9854e', '#e8a87c', '#4ade80', '#facc15', '#a78bfa', '#6b6560'];
 
   /* ─── LOAD DATA ─── */
+  const API_BASE = 'https://underhype.ai/api/prospecting';
+  const SESSION_KEY = 'underhype_prospecting_session';
+  const accessOverlay = document.getElementById('access-overlay');
+  const accessStatus = document.getElementById('access-status');
+  const accessLogin = document.getElementById('access-login');
+  const loginUrl = API_BASE + '/login?return_to=' + encodeURIComponent(window.location.href);
+  accessLogin.href = loginUrl;
+
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const returnedToken = fragment.get('access_token');
+  if (returnedToken) {
+    localStorage.setItem(SESSION_KEY, returnedToken);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+  const sessionToken = returnedToken || localStorage.getItem(SESSION_KEY) || '';
+  const authHeaders = () => sessionToken
+    ? { 'Authorization': 'Bearer ' + sessionToken }
+    : {};
+
+  const showSignIn = (message) => {
+    accessStatus.textContent = message || 'Sign in to load the prospecting console.';
+    accessLogin.style.display = 'inline-block';
+    accessOverlay.style.display = 'flex';
+  };
+
   let data;
   try {
-    const resp = await fetch('data.json');
+    const resp = await fetch(API_BASE + '/data', {
+      headers: authHeaders(),
+      cache: 'no-store'
+    });
+    if (!resp.ok) {
+      const problem = await resp.json().catch(() => ({}));
+      if (resp.status === 401 || resp.status === 403) {
+        showSignIn('Your secure session is not active.');
+        return;
+      }
+      throw new Error(problem.message || 'The secure data service is unavailable.');
+    }
     data = await resp.json();
+    accessOverlay.style.display = 'none';
   } catch(e) {
-    console.error('Failed to load data.json:', e);
-    document.querySelector('.container').innerHTML = '<div style="text-align:center;padding:80px 20px;color:#9a9590;"><h2>Dashboard Offline</h2><p>Could not load data.json. Run the sync script first.</p></div>';
+    console.error('Failed to load secure dashboard data:', e);
+    showSignIn(e.message || 'The secure data service is unavailable.');
     return;
   }
+
+  const refreshButton = document.getElementById('refresh-data');
+  refreshButton.addEventListener('click', async () => {
+    refreshButton.disabled = true;
+    refreshButton.textContent = 'Refreshing';
+    try {
+      const resp = await fetch(API_BASE + '/refresh', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' }
+      });
+      if (!resp.ok) {
+        const problem = await resp.json().catch(() => ({}));
+        if (resp.status === 401 || resp.status === 403) {
+          showSignIn('Your secure session has expired.');
+          return;
+        }
+        throw new Error(problem.message || 'Refresh failed.');
+      }
+      window.location.reload();
+    } catch (error) {
+      document.getElementById('sync-time').textContent = error.message || 'Refresh failed';
+      refreshButton.disabled = false;
+      refreshButton.textContent = 'Try again';
+    }
+  });
 
   const meta = data._meta || {};
   const pipeline = data.pipeline || {};
@@ -2229,7 +2274,7 @@
   /* ═══════════════════════════════════════════════════════════
      DRILL-DOWN
      Every number on this dashboard is a count or sum over the
-     record lists in data.json. These handlers open the actual
+     record lists returned by the secure API. These handlers open the actual
      rows behind a number, each deep-linked to its Notion page,
      so no figure on the page is a dead end.
      ═══════════════════════════════════════════════════════════ */
@@ -2826,8 +2871,8 @@
     const el = document.getElementById('goodwill-note');
     if (!mod || !el) return;
 
-    // An older data.json from a traffic-only or signals-only refresh has no
-    // goodwill block at all. Say so rather than rendering a silent zero.
+    // A traffic-only or signals-only payload may have no goodwill block.
+    // Say so rather than rendering a silent zero.
     if (!goodwill) {
       document.getElementById('kpi-gw-banked-sub').textContent = 'Not in this data file.';
       el.innerHTML = '<div class="empty-state">This data file predates the Goodwill module. '
@@ -2949,8 +2994,8 @@
     const covEl = document.getElementById('prospect-coverage');
     const noteEl = document.getElementById('prospect-note');
 
-    /* An older data.json from a traffic-only or signals-only refresh has no
-       prospect block. Say so rather than rendering a silent zero. */
+    /* A traffic-only or signals-only payload may have no prospect block.
+       Say so rather than rendering a silent zero. */
     if (!prospects) {
       document.getElementById('kpi-pr-total-sub').textContent = 'Not in this data file.';
       noteEl.innerHTML = '<div class="empty-state">This data file predates the Prospect Database '
