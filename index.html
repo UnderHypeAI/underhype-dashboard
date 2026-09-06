@@ -870,6 +870,27 @@
     line-height: 1.45;
     word-break: break-word;
   }
+  .email-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .email-track-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex: 0 0 6px;
+  }
+  .email-track.is-clicked .email-track-dot { background: var(--accent-light); }
+  .email-track.is-checking .email-track-dot { background: var(--warning); }
+  .email-track.is-unconfirmed .email-track-dot { background: var(--muted); }
+  .email-track.is-replied .email-track-dot { background: var(--success); }
+  .email-track.is-bounced .email-track-dot { background: var(--danger); }
+  .email-track-detail {
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
   .rec-note {
     margin-top: 14px;
     padding-top: 13px;
@@ -1885,12 +1906,18 @@
     return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const escAttr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const truncate = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1).trimEnd() + '\u2026' : s; };
 
   /* ─── SYNC TIME ─── */
   if (meta.last_synced) {
     const d = new Date(meta.last_synced);
     document.getElementById('sync-time').textContent = 'Synced ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+  if (meta.email_monitor?.status === 'error') {
+    const syncTime = document.getElementById('sync-time');
+    syncTime.textContent += ' · Email monitor needs attention';
+    syncTime.style.color = 'var(--danger)';
   }
 
   /* ─── KPIs ─── */
@@ -3024,6 +3051,37 @@
 
   /* Full detail for one CRM record. Only fields that actually hold a value are
      rendered, so an empty record looks empty instead of showing fake structure. */
+  function emailTrackingField(tracking) {
+    if (!tracking?.status) return '';
+    const labels = {
+      sent: 'Sent',
+      checking: 'Checking',
+      unconfirmed: 'Unconfirmed',
+      clicked: 'Clicked',
+      replied: 'Replied',
+      bounced: 'Bounced',
+    };
+    const eventAt = tracking.bounced_at || tracking.replied_at
+      || tracking.clicked_at || tracking.sent_at;
+    let detail = '';
+    if (eventAt) {
+      const parsed = new Date(eventAt);
+      if (!Number.isNaN(parsed.getTime())) {
+        detail = parsed.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+    }
+    const title = tracking.bounce_reason || tracking.subject || '';
+    return `<div><div class="rec-f-label">Email Status</div>`
+      + `<div class="rec-f-value email-track is-${escAttr(tracking.status)}" title="${escAttr(title)}">`
+      + `<span class="email-track-dot" aria-hidden="true"></span>`
+      + `<span>${esc(labels[tracking.status] || tracking.status)}</span>`
+      + (detail ? `<span class="email-track-detail">${esc(detail)}</span>` : '')
+      + `</div></div>`;
+  }
+
   function recordCard(r) {
     const quietTxt = (r.days_quiet === null || r.days_quiet === undefined)
       ? 'No contact ever logged'
@@ -3040,6 +3098,7 @@
     f += field('Location', r.location);
     f += contactField('Phone', r.phone, 'tel');
     f += contactField('Email', r.email, 'mailto');
+    f += emailTrackingField(r.email_tracking);
     if (r.mrr) f += field('MRR', money(r.mrr));
     if (r.est_monthly) f += field('Est. Value / Month', money(r.est_monthly));
     if (r.est_annual) f += field('Est. Value / Year', money(r.est_annual));
