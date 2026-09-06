@@ -1043,12 +1043,39 @@
   }
   .email-template-help,
   .email-status,
+  .email-rewrite-help,
+  .email-rewrite-status,
   .email-warning {
     font-size: 11px;
     line-height: 1.5;
   }
   .email-template-help,
-  .email-status { color: var(--text-secondary); }
+  .email-status,
+  .email-rewrite-help,
+  .email-rewrite-status { color: var(--text-secondary); }
+  .email-rewrite {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(196, 101, 42, .28);
+    border-radius: 10px;
+    background: rgba(196, 101, 42, .05);
+  }
+  .email-rewrite-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .email-rewrite-row .email-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .email-rewrite-row .act {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+  .email-rewrite-status.is-success { color: var(--success); }
+  .email-rewrite-status.is-error { color: var(--danger); }
   .email-warning {
     display: none;
     border: 1px solid rgba(250, 204, 21, .28);
@@ -1101,6 +1128,8 @@
       padding-right: 7px;
     }
     .email-body { min-height: 250px; }
+    .email-rewrite-row { flex-direction: column; }
+    .email-rewrite-row .act { min-height: 40px; }
     .email-actions .act {
       flex: 1 1 100%;
       justify-content: center;
@@ -1697,6 +1726,16 @@
         <div class="email-field">
           <label class="email-label" for="email-body">Message</label>
           <textarea class="email-body" id="email-body" maxlength="12000" required></textarea>
+        </div>
+        <div class="email-rewrite">
+          <label class="email-label" for="email-rewrite-instruction">Generate a new version</label>
+          <div class="email-rewrite-row">
+            <input class="email-input" id="email-rewrite-instruction" maxlength="1000"
+              placeholder="Make this warmer. Lead with the free AI review. Keep it under 120 words.">
+            <button type="button" class="act act-primary" id="email-rewrite">Generate revision</button>
+          </div>
+          <div class="email-rewrite-help">AI edits only the subject and message. The recipient stays locked. Nothing is sent.</div>
+          <div class="email-rewrite-status" id="email-rewrite-status" role="status" aria-live="polite"></div>
         </div>
         <div class="email-warning" id="email-warning" role="status"></div>
         <label class="email-review-check">
@@ -2478,6 +2517,10 @@
   const emailTemplate = document.getElementById('email-template');
   const emailReviewed = document.getElementById('email-reviewed');
   const emailSend = document.getElementById('email-send');
+  const emailRewrite = document.getElementById('email-rewrite');
+  const emailRewriteInstruction = document.getElementById('email-rewrite-instruction');
+  const emailSubject = document.getElementById('email-subject');
+  const emailBody = document.getElementById('email-body');
   let emailState = null;
   let emailLastFocused = null;
 
@@ -2499,6 +2542,9 @@
     emailState = null;
     emailReviewed.checked = false;
     emailSend.disabled = true;
+    emailRewrite.disabled = false;
+    emailRewriteInstruction.value = '';
+    document.getElementById('email-rewrite-status').textContent = '';
     if (!modal.classList.contains('open')) document.body.style.overflow = '';
     if (emailLastFocused && emailLastFocused.focus) emailLastFocused.focus();
   }
@@ -2691,8 +2737,11 @@
     document.getElementById('email-from').value =
       `${result.from.name} <${result.from.email}>`;
     document.getElementById('email-to').value = result.to;
-    document.getElementById('email-subject').value = result.subject;
-    document.getElementById('email-body').value = result.body;
+    emailSubject.value = result.subject;
+    emailBody.value = result.body;
+    emailRewrite.disabled = false;
+    emailRewriteInstruction.disabled = false;
+    document.getElementById('email-rewrite-status').textContent = '';
     const warning = document.getElementById('email-warning');
     warning.textContent = (result.warnings || []).join(' ');
     warning.classList.toggle('show', Boolean(warning.textContent));
@@ -2734,10 +2783,74 @@
     emailSend.disabled = !emailReviewed.checked || !emailState;
   });
 
+  function requireFreshEmailReview() {
+    emailReviewed.checked = false;
+    emailSend.disabled = true;
+    emailSend.textContent = 'Send email';
+    delete emailSend.dataset.requestId;
+  }
+
+  emailSubject.addEventListener('input', requireFreshEmailReview);
+  emailBody.addEventListener('input', requireFreshEmailReview);
+
+  emailRewrite.addEventListener('click', async () => {
+    if (!emailState) return;
+    const instruction = emailRewriteInstruction.value.trim();
+    const rewriteStatus = document.getElementById('email-rewrite-status');
+    rewriteStatus.className = 'email-rewrite-status';
+    if (!instruction) {
+      rewriteStatus.className = 'email-rewrite-status is-error';
+      rewriteStatus.textContent = 'Tell AI what you want changed.';
+      emailRewriteInstruction.focus();
+      return;
+    }
+
+    requireFreshEmailReview();
+    emailRewrite.disabled = true;
+    emailRewriteInstruction.disabled = true;
+    emailTemplate.disabled = true;
+    rewriteStatus.textContent = 'Generating a new version with Cloudflare AI...';
+    try {
+      const resp = await fetch(API_BASE + '/email/rewrite', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          record_id: emailState.record_id,
+          review_token: emailState.review_token,
+          subject: emailSubject.value,
+          body: emailBody.value,
+          instruction
+        })
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          localStorage.removeItem(SESSION_KEY);
+          showSignIn('Your secure session has expired.');
+        }
+        throw new Error(result.message || 'Cloudflare AI could not generate a revision.');
+      }
+      if (result.to !== emailState.to) {
+        throw new Error('The recipient changed unexpectedly. Compose the email again.');
+      }
+      emailSubject.value = result.subject;
+      emailBody.value = result.body;
+      rewriteStatus.className = 'email-rewrite-status is-success';
+      rewriteStatus.textContent = 'New version ready. Review every word before sending.';
+    } catch (error) {
+      rewriteStatus.className = 'email-rewrite-status is-error';
+      rewriteStatus.textContent = error.message || 'Cloudflare AI could not generate a revision.';
+    } finally {
+      emailRewrite.disabled = false;
+      emailRewriteInstruction.disabled = false;
+      emailTemplate.disabled = false;
+    }
+  });
+
   document.getElementById('email-mail-app').addEventListener('click', () => {
     if (!emailState) return;
-    const subject = document.getElementById('email-subject').value;
-    const body = document.getElementById('email-body').value;
+    const subject = emailSubject.value;
+    const body = emailBody.value;
     window.location.href = `mailto:${emailState.to}`
       + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   });
@@ -2745,8 +2858,8 @@
   emailForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!emailState || !emailReviewed.checked) return;
-    const subject = document.getElementById('email-subject').value.trim();
-    const body = document.getElementById('email-body').value.trim();
+    const subject = emailSubject.value.trim();
+    const body = emailBody.value.trim();
     if (!subject || !body) return;
     if (!window.confirm(`Send this email now to ${emailState.to}?`)) return;
 
