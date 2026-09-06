@@ -40,6 +40,7 @@
     --text-dim: #4a4540;
     --success: #4ade80;
     --warning: #facc15;
+    --danger: #f87171;
     --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
     --radius: 12px;
@@ -951,6 +952,52 @@
     font-size: 11px;
     color: var(--text-muted);
   }
+  .activity-log {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--card-border);
+  }
+  .activity-log-title {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .activity-log-row {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .activity-outcome {
+    flex: 1 1 220px;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: #171513;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11.5px;
+  }
+  .activity-outcome::placeholder { color: var(--text-muted); }
+  .activity-outcome:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .activity-log .act[disabled] {
+    opacity: .55;
+    cursor: wait;
+  }
+  .activity-status {
+    min-height: 16px;
+    margin-top: 7px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .activity-status.is-success { color: var(--success); }
+  .activity-status.is-error { color: var(--danger); }
   /* ─── MOBILE ──────────────────────────────────────────────────────────────
      This dashboard gets used on a phone as much as a desktop, so phone width
      is a first class layout rather than a shrunken desktop.
@@ -964,6 +1011,13 @@
      cells at runtime from each table's own headers, so this applies to every
      table on the page and to any table added later. */
   @media (max-width: 640px) {
+    .activity-outcome { flex-basis: 100%; }
+    .activity-log .act {
+      flex: 1 1 calc(33.333% - 6px);
+      justify-content: center;
+      padding-left: 7px;
+      padding-right: 7px;
+    }
     .mini-table thead { display: none; }
     .mini-table,
     .mini-table tbody,
@@ -2436,6 +2490,84 @@
     return html;
   }
 
+  function activityLogger(r) {
+    return `<div class="activity-log" data-record-id="${esc(r.id)}">
+      <div class="activity-log-title">Log activity</div>
+      <div class="activity-log-row">
+        <input class="activity-outcome" type="text" maxlength="500"
+          aria-label="Optional activity outcome" placeholder="Outcome (optional)">
+        <button type="button" class="act js-log-activity" data-action="texted">
+          ${ICON.sms}<span>Texted</span>
+        </button>
+        <button type="button" class="act js-log-activity" data-action="called">
+          ${ICON.phone}<span>Called</span>
+        </button>
+        <button type="button" class="act js-log-activity" data-action="emailed">
+          ${ICON.mail}<span>Emailed</span>
+        </button>
+      </div>
+      <div class="activity-status" role="status" aria-live="polite"></div>
+    </div>`;
+  }
+
+  const newRequestId = () => {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const bytes = crypto.getRandomValues(new Uint8Array(18));
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  document.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest && ev.target.closest('.js-log-activity');
+    if (!btn) return;
+    ev.preventDefault();
+
+    const panel = btn.closest('.activity-log');
+    const status = panel.querySelector('.activity-status');
+    const outcome = panel.querySelector('.activity-outcome');
+    const buttons = panel.querySelectorAll('.js-log-activity');
+    const label = btn.querySelector('span');
+    const original = label.textContent;
+    const requestId = btn.dataset.requestId || newRequestId();
+    btn.dataset.requestId = requestId;
+
+    buttons.forEach(button => { button.disabled = true; });
+    status.className = 'activity-status';
+    status.textContent = 'Logging activity...';
+    label.textContent = 'Logging';
+
+    try {
+      const resp = await fetch(API_BASE + '/activity', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          record_id: panel.dataset.recordId,
+          action: btn.dataset.action,
+          outcome: outcome.value.trim(),
+          request_id: requestId
+        })
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          localStorage.removeItem(SESSION_KEY);
+          showSignIn('Your secure session has expired.');
+        }
+        throw new Error(result.message || 'Activity could not be logged.');
+      }
+
+      label.textContent = 'Logged';
+      btn.classList.add('act-done');
+      status.className = 'activity-status is-success';
+      status.textContent = `${original} logged for ${result.date}. Refreshing the console...`;
+      setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+      label.textContent = original;
+      status.className = 'activity-status is-error';
+      status.textContent = error.message || 'Activity could not be logged.';
+      buttons.forEach(button => { button.disabled = false; });
+    }
+  });
+
   /* One delegated listener for every copy button, present and future. */
   document.addEventListener('click', function (ev) {
     const btn = ev.target.closest && ev.target.closest('.js-copy');
@@ -2529,6 +2661,7 @@
       html += `<div class="rec-note"><div class="rec-note-label">Notes</div>${esc(r.notes)}</div>`;
     }
     html += actionBar(r, r.name);
+    html += activityLogger(r);
     return html + '</div>';
   }
 
