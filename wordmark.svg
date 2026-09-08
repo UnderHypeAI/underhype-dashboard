@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 56" role="img" aria-label="UnderHype.ai">
+  <text x="0" y="34"
+        font-family="'General Sans','Satoshi',system-ui,sans-serif"
+        font-size="30"
+        fill="#E2DED6"
+        letter-spacing="-0.7">
+    <tspan font-weight="500">Under</tspan><tspan font-weight="800">Hype</tspan><tspan font-weight="500" fill="#C4652A" font-size="22">.ai</tspan>
+  </text>
+  <rect x="0" y="44" width="180" height="3" rx="1.5" fill="#1AB5A8"/>
+</svg>

@@ -1470,6 +1470,45 @@
     .module.is-shut .collapse-toggle { margin-bottom: 0; }
   }
 
+  .brand-wordmark { display:block; width:168px; height:auto; }
+  .contractor-flow { display:grid; gap:34px; }
+  .workflow-section { scroll-margin-top:20px; }
+  .workflow-heading { display:flex; align-items:end; justify-content:space-between; gap:18px; margin-bottom:12px; }
+  .workflow-heading-copy { max-width:720px; }
+  .workflow-kicker { margin-bottom:6px; color:var(--accent-light); font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+  .workflow-title { margin:0; color:var(--text-primary); font-size:20px; line-height:1.2; }
+  .workflow-description { margin-top:7px; color:var(--text-secondary); font-size:12px; line-height:1.55; }
+  .summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+  .summary-grid .kpi-card { min-height:118px; }
+  .summary-grid .kpi-value { margin-top:13px; }
+  .intake-columns,.followup-columns,.deal-columns { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:14px; }
+  .intake-group { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:14px; }
+  .partner-choice { min-height:82px; }
+  .compact-list { display:grid; gap:10px; }
+  .compact-list-item { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 0; border-bottom:1px solid var(--card-border); }
+  .compact-list-item:last-child { padding-bottom:0; border-bottom:0; }
+  .compact-list-name { color:var(--text-primary); font-size:12px; font-weight:650; }
+  .compact-list-meta { margin-top:3px; color:var(--text-muted); font-size:10.5px; }
+  .state-chip { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; color:var(--text-secondary); font-size:10px; }
+  .state-chip::before { width:6px; height:6px; border-radius:50%; background:var(--accent); content:""; }
+  .state-chip.is-live::before { background:var(--success); }
+  .book-actions { display:flex; flex-wrap:wrap; gap:7px; }
+  .deal-snapshot { display:grid; gap:10px; }
+  .deal-stat { padding:14px; border:1px solid var(--card-border); border-radius:8px; background:#161514; }
+  .deal-stat-label { color:var(--text-muted); font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+  .deal-stat-value { margin-top:7px; color:var(--text-primary); font-size:22px; font-weight:680; }
+  @media (max-width:980px) {
+    .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .intake-columns,.followup-columns,.deal-columns { grid-template-columns:1fr; }
+  }
+  @media (max-width:640px) {
+    .contractor-flow { gap:28px; }
+    .workflow-heading { align-items:start; flex-direction:column; }
+    .workflow-title { font-size:18px; }
+    .summary-grid,.intake-group { grid-template-columns:1fr; }
+    .summary-grid .kpi-card { min-height:auto; }
+    .compact-list-item { align-items:flex-start; flex-direction:column; }
+  }
 </style>
 </head>
 <body>
@@ -1500,7 +1539,7 @@
   <header class="header">
     <div class="header-inner">
       <div class="brand">
-        <h1>Under<span>Hype</span></h1>
+        <img class="brand-wordmark" src="./wordmark.svg" alt="UnderHype.ai">
         <div class="subtitle">AI Services Dashboard</div>
       </div>
       <div class="sync-info">
@@ -1514,46 +1553,53 @@
   </header>
 
   <section id="contractor-dashboard" hidden>
-    <div class="section-title">Assigned Pipeline</div>
-    <div class="contractor-intro">Only prospects assigned to you are shown. Financials, partner terms, and other representatives' pipelines are not included in this view.</div>
-    <div class="grid-4">
-      <div class="kpi-card">
-        <div class="kpi-label">Assigned Prospects</div>
-        <div class="kpi-value" id="contractor-assigned">0</div>
-        <div class="kpi-sub">Records currently assigned to you.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Open Prospects</div>
-        <div class="kpi-value" id="contractor-open">0</div>
-        <div class="kpi-sub">Open conversations in your pipeline.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Reachable</div>
-        <div class="kpi-value" id="contractor-reachable">0</div>
-        <div class="kpi-sub">Records with a phone number or email.</div>
-      </div>
-    </div>
-    <div class="card intake-card">
-      <div class="card-title">Build Your Pipeline</div>
-      <div class="contractor-intro">Add prospects here and they will be assigned only to your account. Every import is checked before anything is written to the CRM.</div>
-      <div class="intake-actions">
-      <button class="intake-choice" id="intake-card-button" type="button">
-        <strong>Scan a business card</strong>
-        <span>Take a photo or upload an image. Valid new contacts are added automatically.</span>
-        </button>
-        <button class="intake-choice" id="intake-manual-button" type="button">
-          <strong>Add one contact</strong>
-          <span>Enter a person or business directly from the console.</span>
-        </button>
-        <button class="intake-choice" id="intake-csv-button" type="button">
-          <strong>Upload a CSV</strong>
-          <span>Preview and deduplicate a list of up to 100 prospects.</span>
-        </button>
-      </div>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <div class="card-title">Your Prospects</div>
-      <div id="contractor-records"></div>
+    <div class="contractor-flow">
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Your book at a glance</div><h2 class="workflow-title">Book Summary</h2><div class="workflow-description">Only records assigned to your UnderHype account are included. Financials and other representatives' books stay private.</div></div></div>
+        <div class="summary-grid">
+          <div class="kpi-card"><div class="kpi-label">Prospects</div><div class="kpi-value" id="contractor-assigned">0</div><div class="kpi-sub">In your prospecting database.</div></div>
+          <div class="kpi-card"><div class="kpi-label">Current Clients</div><div class="kpi-value" id="contractor-clients">0</div><div class="kpi-sub">Active in your book.</div></div>
+          <div class="kpi-card"><div class="kpi-label">Active Deals</div><div class="kpi-value" id="contractor-open">0</div><div class="kpi-sub">Qualified opportunities moving.</div></div>
+          <div class="kpi-card"><div class="kpi-label">Recruiting Partners</div><div class="kpi-value" id="contractor-recruiting-partners">0</div><div class="kpi-sub">Prospective relationships.</div></div>
+          <div class="kpi-card"><div class="kpi-label">Active Partners</div><div class="kpi-value" id="contractor-active-partners">0</div><div class="kpi-sub">Active referral and channel partners.</div></div>
+        </div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Grow the database</div><h2 class="workflow-title">Add Prospects and Partners</h2><div class="workflow-description">Capture contacts from the field or import a prepared list. Every record is checked before it enters your book.</div></div></div>
+        <div class="intake-columns">
+          <div class="card intake-card" style="margin:0"><div class="card-title">Add Prospects</div><div class="intake-group">
+            <button class="intake-choice" id="intake-card-button" type="button"><strong>Scan a business card</strong><span>Valid new contacts are added automatically.</span></button>
+            <button class="intake-choice" id="intake-manual-button" type="button"><strong>Add one contact</strong><span>Enter a person or business directly.</span></button>
+            <button class="intake-choice" id="intake-csv-button" type="button"><strong>Upload a CSV</strong><span>Preview and deduplicate up to 100 prospects.</span></button>
+          </div></div>
+          <div class="card"><div class="card-title">Add Prospective Partners</div><div class="intake-group" style="grid-template-columns:1fr">
+            <button class="intake-choice partner-choice" id="partner-card-button" type="button"><strong>Scan a partner business card</strong><span>Read a card and add the prospective partner to your relationship book.</span></button>
+            <button class="intake-choice partner-choice" id="partner-manual-button" type="button"><strong>Add one partner</strong><span>Create one referral or channel partner.</span></button>
+            <button class="intake-choice partner-choice" id="partner-csv-button" type="button"><strong>Upload a partner CSV</strong><span>Preview and deduplicate a partner list.</span></button>
+          </div></div>
+        </div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Build the channel</div><h2 class="workflow-title">Partner Recruitment</h2><div class="workflow-description">Develop prospective referral and channel partners through a dedicated relationship flow.</div></div></div>
+        <div class="followup-columns"><div class="card"><div class="card-title">Partner Recruitment Conversations</div><div id="contractor-partner-recruitment"></div></div><div class="card"><div class="card-title">Recruitment Flow</div><div id="contractor-partner-stages"></div></div></div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Grow through relationships</div><h2 class="workflow-title">Partner Management</h2><div class="workflow-description">Keep active partner relationships visible and easy to contact.</div></div></div>
+        <div class="card"><div class="card-title">Active Partner Book</div><div id="contractor-active-partner-book"></div></div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Work the relationships</div><h2 class="workflow-title">Prospect Follow-Up</h2><div class="workflow-description">Conversations are ordered by time since the last logged contact, without assigning priorities or due dates.</div></div></div>
+        <div class="card"><div class="card-title">Open Prospect Conversations</div><div id="contractor-follow-up"></div></div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Your Prospect Database</div><div id="contractor-records"></div></div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Deals with demonstrated interest</div><h2 class="workflow-title">Qualified Pipeline and Active Deals</h2><div class="workflow-description">Only opportunities beyond initial outreach appear here.</div></div></div>
+        <div class="card"><div class="card-title">Active Deals</div><div id="contractor-deals"></div></div>
+      </section>
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Current book of business</div><h2 class="workflow-title">Active Clients</h2><div class="workflow-description">The clients currently assigned to your book.</div></div></div>
+        <div class="card"><div id="contractor-client-book"></div></div>
+      </section>
     </div>
   </section>
 
@@ -1574,6 +1620,15 @@
         <strong>Upload a CSV</strong>
         <span>Preview and deduplicate a list of up to 100 prospects.</span>
       </button>
+    </div>
+  </div>
+  <div class="card intake-card">
+    <div class="card-title">Build Partner Network</div>
+    <div class="contractor-intro">Add prospective partners directly to the Partnerships CRM. Ownership and safe defaults are applied automatically.</div>
+    <div class="intake-actions">
+      <button class="intake-choice" id="admin-partner-card-button" type="button"><strong>Scan a partner business card</strong><span>Read a card and add the prospective partner automatically when valid.</span></button>
+      <button class="intake-choice" id="admin-partner-manual-button" type="button"><strong>Add one partner</strong><span>Enter a referral or channel partner directly.</span></button>
+      <button class="intake-choice" id="admin-partner-csv-button" type="button"><strong>Upload a partner CSV</strong><span>Preview and deduplicate up to 100 partners.</span></button>
     </div>
   </div>
   <!-- 1. KPI CARDS -->
@@ -1975,6 +2030,10 @@
   accept="image/jpeg,image/png,image/webp" capture="environment">
 <input class="intake-file-input" id="intake-csv-file" type="file"
   accept=".csv,text/csv">
+<input class="intake-file-input" id="partner-card-file" type="file"
+  accept="image/jpeg,image/png,image/webp" capture="environment">
+<input class="intake-file-input" id="partner-csv-file" type="file"
+  accept=".csv,text/csv">
 <div class="modal-backdrop intake-modal" id="intake-modal" role="dialog" aria-modal="true"
   aria-labelledby="intake-title">
   <div class="modal">
@@ -1989,11 +2048,11 @@
       <form id="intake-form">
         <div class="intake-form-grid" id="intake-editor">
           <label class="intake-field">
-            <span class="intake-label">Contact name</span>
+            <span class="intake-label" id="intake-contact-label">Contact name</span>
             <input class="intake-input" name="contact" maxlength="160" autocomplete="name">
           </label>
           <label class="intake-field">
-            <span class="intake-label">Business</span>
+            <span class="intake-label" id="intake-business-label">Business</span>
             <input class="intake-input" name="business" maxlength="200" autocomplete="organization">
           </label>
           <label class="intake-field">
@@ -2008,11 +2067,24 @@
             <span class="intake-label">Website</span>
             <input class="intake-input" name="website" maxlength="500" inputmode="url">
           </label>
-          <label class="intake-field">
+          <label class="intake-field" data-prospect-only>
             <span class="intake-label">Industry</span>
             <input class="intake-input" name="industry" maxlength="160">
           </label>
-          <label class="intake-field">
+          <label class="intake-field" id="intake-partner-type-field" hidden>
+            <span class="intake-label">Partner type</span>
+            <select class="intake-select" name="partner_type">
+              <option>MSP / Referral</option>
+              <option>Marketing Agency</option>
+              <option>Commercial Leasing / Property Mgmt</option>
+              <option>Chamber of Commerce</option>
+              <option>Community / Association</option>
+              <option>Reseller / Channel</option>
+              <option>Client-Side Champion</option>
+              <option>Platform / Vendor</option>
+            </select>
+          </label>
+          <label class="intake-field" data-prospect-only>
             <span class="intake-label">Location</span>
             <input class="intake-input" name="location" maxlength="200">
           </label>
@@ -2027,7 +2099,7 @@
               <option>Free Review Request</option>
             </select>
           </label>
-          <label class="intake-field is-wide">
+          <label class="intake-field is-wide" data-prospect-only>
             <span class="intake-label">Referral source</span>
             <input class="intake-input" name="referral_source" maxlength="200"
               placeholder="Who introduced you, if anyone">
@@ -2905,7 +2977,7 @@
   const intakeImportStatus = document.getElementById('intake-import-status');
   const intakeImport = document.getElementById('intake-import');
   const intakeReviewRow = document.getElementById('intake-review-row');
-  let intakeState = { source: 'manual', rows: [], lastFocused: null };
+  let intakeState = { kind: 'prospect', source: 'manual', rows: [], lastFocused: null };
   const emailModal = document.getElementById('email-modal');
   const emailForm = document.getElementById('email-form');
   const emailTemplate = document.getElementById('email-template');
@@ -2962,11 +3034,23 @@
     if (intakeState.lastFocused?.focus) intakeState.lastFocused.focus();
   }
 
-  function openIntake(source, trigger) {
-    intakeState = { source, rows: [], lastFocused: trigger || document.activeElement };
+  function intakePath(action) {
+    return `/${intakeState.kind === 'partner' ? 'partners' : 'prospects'}/${action}`;
+  }
+
+  function openIntake(source, trigger, kind = 'prospect') {
+    intakeState = { kind, source, rows: [], lastFocused: trigger || document.activeElement };
     intakeForm.reset();
     intakeForm.elements.lead_source.value =
       source === 'business_card' ? 'Network / Event' : 'Outbound';
+    document.querySelectorAll('[data-prospect-only]').forEach((field) => {
+      field.hidden = kind === 'partner';
+    });
+    document.getElementById('intake-partner-type-field').hidden = kind !== 'partner';
+    document.getElementById('intake-contact-label').textContent =
+      kind === 'partner' ? 'Partner contact' : 'Contact name';
+    document.getElementById('intake-business-label').textContent =
+      kind === 'partner' ? 'Organization' : 'Business';
     intakeEditor.hidden = source === 'csv';
     intakeReviewRow.hidden = source === 'csv';
     intakePreview.innerHTML = '';
@@ -2975,14 +3059,15 @@
     intakeImportStatus.className = 'intake-status';
     intakeImportStatus.textContent = '';
     intakeImport.disabled = true;
+    const noun = kind === 'partner' ? 'partner' : 'prospect';
     document.getElementById('intake-title').textContent =
-      source === 'csv' ? 'Import prospect list'
-        : source === 'business_card' ? 'Review business card'
-          : 'Add one contact';
+      source === 'csv' ? `Import ${noun} list`
+        : source === 'business_card' ? `Review ${noun} business card`
+          : `Add one ${noun}`;
     document.getElementById('intake-sub').textContent =
       source === 'csv'
         ? 'Only valid, nonduplicate rows will be added and assigned to you.'
-        : 'Confirm the details before adding this prospect to your pipeline.';
+        : `Confirm the details before adding this ${noun} to your book.`;
     intakeModal.classList.add('open');
     document.body.style.overflow = 'hidden';
     intakeModal.scrollTop = 0;
@@ -2990,7 +3075,20 @@
   }
 
   function intakeRowFromForm() {
-    return Object.fromEntries(new FormData(intakeForm).entries());
+    const row = Object.fromEntries(new FormData(intakeForm).entries());
+    if (intakeState.kind === 'partner') {
+      return {
+        partner: row.contact,
+        organization: row.business,
+        email: row.email,
+        phone: row.phone,
+        website: row.website,
+        location: row.location,
+        partner_type: row.partner_type,
+        notes: row.notes
+      };
+    }
+    return row;
   }
 
   async function intakeApi(path, payload) {
@@ -3005,7 +3103,7 @@
         sessionStore.remove();
         showSignIn('Your secure session has expired.');
       }
-      throw new Error(result.message || 'The prospect could not be processed.');
+      throw new Error(result.message || 'The record could not be processed.');
     }
     return result;
   }
@@ -3013,10 +3111,14 @@
   function fillIntakeForm(row) {
     const fields = [
       'contact', 'business', 'email', 'phone', 'website', 'industry',
-      'location', 'lead_source', 'referral_source', 'notes'
+      'location', 'lead_source', 'referral_source', 'partner_type', 'notes'
     ];
     fields.forEach((name) => {
-      if (intakeForm.elements[name]) intakeForm.elements[name].value = row[name] || '';
+      if (!intakeForm.elements[name]) return;
+      const value = name === 'contact' ? (row.contact || row.partner)
+        : name === 'business' ? (row.business || row.organization)
+          : name === 'partner_type' ? (row.partner_type || row.type) : row[name];
+      intakeForm.elements[name].value = value || '';
     });
   }
 
@@ -3028,7 +3130,7 @@
       + ` · ${result.invalid_count || 0} needs attention`;
     intakePreview.innerHTML = `<div class="intake-preview-summary">${esc(summary)}</div>`
       + `<table class="mini-table">
-        <thead><tr><th>Prospect</th><th>Contact</th><th>Reach</th><th>Status</th></tr></thead>
+        <thead><tr><th>${intakeState.kind === 'partner' ? 'Organization' : 'Prospect'}</th><th>Contact</th><th>Reach</th><th>Status</th></tr></thead>
         <tbody>${rows.map((item) => {
           const row = item.data || {};
           const reach = row.email || row.phone || row.website || 'Not provided';
@@ -3037,8 +3139,8 @@
             : item.valid ? 'Ready to add' : item.errors.join(' ');
           const statusClass = item.duplicate ? 'is-skip' : item.valid ? 'is-ready' : 'is-error';
           return `<tr>
-            <td><span class="name">${esc(row.business || row.contact || 'Unnamed')}</span></td>
-            <td>${esc(row.contact || 'Not named')}</td>
+            <td><span class="name">${esc(row.business || row.organization || row.contact || row.partner || 'Unnamed')}</span></td>
+            <td>${esc(row.contact || row.partner || 'Not named')}</td>
             <td>${esc(reach)}</td>
             <td><span class="intake-row-status ${statusClass}">${esc(message)}</span></td>
           </tr>`;
@@ -3046,9 +3148,10 @@
       </table>`;
     labelTables(intakePreview);
     intakeImport.disabled = !(result.valid_count > 0);
+    const destination = intakeState.kind === 'partner' ? 'partner book' : 'pipeline';
     intakeImport.textContent = result.valid_count === 1
-      ? 'Add to my pipeline'
-      : `Add ${result.valid_count || 0} to my pipeline`;
+      ? `Add to my ${destination}`
+      : `Add ${result.valid_count || 0} to my ${destination}`;
   }
 
   intakeForm.addEventListener('input', () => {
@@ -3066,7 +3169,7 @@
     intakeStatus.textContent = 'Checking required fields and duplicates...';
     document.getElementById('intake-review').disabled = true;
     try {
-      const result = await intakeApi('/prospects/preview', {
+      const result = await intakeApi(intakePath('preview'), {
         source: intakeState.source,
         rows: [intakeRowFromForm()]
       });
@@ -3075,7 +3178,7 @@
       intakeStatus.className = result.valid_count ? 'intake-status is-success' : 'intake-status is-error';
       intakeStatus.textContent = result.valid_count
         ? 'Ready to add. Confirm the details below.'
-        : 'Fix the issue shown below before adding this prospect.';
+        : `Fix the issue shown below before adding this ${intakeState.kind}.`;
     } catch (error) {
       intakeStatus.className = 'intake-status is-error';
       intakeStatus.textContent = error.message;
@@ -3090,6 +3193,12 @@
   document.getElementById('admin-intake-manual-button').addEventListener('click', (event) => {
     openIntake('manual', event.currentTarget);
   });
+  document.getElementById('partner-manual-button').addEventListener('click', (event) => {
+    openIntake('manual', event.currentTarget, 'partner');
+  });
+  document.getElementById('admin-partner-manual-button').addEventListener('click', (event) => {
+    openIntake('manual', event.currentTarget, 'partner');
+  });
   document.getElementById('intake-card-button').addEventListener('click', (event) => {
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-card-file').click();
@@ -3098,6 +3207,14 @@
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-card-file').click();
   });
+  document.getElementById('partner-card-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('partner-card-file').click();
+  });
+  document.getElementById('admin-partner-card-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('partner-card-file').click();
+  });
   document.getElementById('intake-csv-button').addEventListener('click', (event) => {
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-csv-file').click();
@@ -3105,6 +3222,14 @@
   document.getElementById('admin-intake-csv-button').addEventListener('click', (event) => {
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-csv-file').click();
+  });
+  document.getElementById('partner-csv-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('partner-csv-file').click();
+  });
+  document.getElementById('admin-partner-csv-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('partner-csv-file').click();
   });
 
   function readFile(file, dataUrl) {
@@ -3127,18 +3252,49 @@
     try {
       if (file.size > 4 * 1024 * 1024) throw new Error('Choose an image that is 4 MB or smaller.');
       const image = await readFile(file, true);
-      const result = await intakeApi('/prospects/business-card', { image });
+      const result = await intakeApi(intakePath('business-card'), { image });
       const row = result.rows?.[0]?.data || {};
       fillIntakeForm(row);
       renderIntakePreview(result);
       if (result.valid_count === 1 && !result.duplicate_count && !result.invalid_count) {
         intakeStatus.className = 'intake-status is-success';
         intakeStatus.textContent = 'Card read. Adding the contact to your Pipeline...';
-        await importReadyProspects(false);
+        await importReadyRecords(false);
       } else {
         intakeStatus.className = 'intake-status is-error';
         intakeStatus.textContent = result.duplicate_count
           ? 'This card appears to match an existing Pipeline record.'
+          : 'The card needs attention before it can be added.';
+      }
+    } catch (error) {
+      intakeStatus.className = 'intake-status is-error';
+      intakeStatus.textContent = error.message;
+    } finally {
+      document.getElementById('intake-review').disabled = false;
+    }
+  });
+
+  document.getElementById('partner-card-file').addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    openIntake('business_card', intakeState.lastFocused, 'partner');
+    intakeStatus.textContent = 'Reading the partner business card image...';
+    document.getElementById('intake-review').disabled = true;
+    try {
+      if (file.size > 4 * 1024 * 1024) throw new Error('Choose an image that is 4 MB or smaller.');
+      const image = await readFile(file, true);
+      const result = await intakeApi(intakePath('business-card'), { image });
+      fillIntakeForm(result.rows?.[0]?.data || {});
+      renderIntakePreview(result);
+      if (result.valid_count === 1 && !result.duplicate_count && !result.invalid_count) {
+        intakeStatus.className = 'intake-status is-success';
+        intakeStatus.textContent = 'Card read. Adding the prospective partner to your book...';
+        await importReadyRecords(false);
+      } else {
+        intakeStatus.className = 'intake-status is-error';
+        intakeStatus.textContent = result.duplicate_count
+          ? 'This card appears to match an existing partner record.'
           : 'The card needs attention before it can be added.';
       }
     } catch (error) {
@@ -3194,7 +3350,8 @@
       location: ['location', 'city', 'address', 'businessaddress'],
       lead_source: ['leadsource'],
       referral_source: ['referralsource', 'referredby', 'source'],
-      notes: ['notes', 'note', 'comments', 'jobtitle', 'title']
+      notes: ['notes', 'note', 'comments', 'jobtitle', 'title'],
+      partner_type: ['partnertype', 'type', 'relationshiptype']
     };
     const lookup = {};
     Object.entries(aliases).forEach(([key, values]) => {
@@ -3231,12 +3388,41 @@
     intakeImportStatus.textContent = 'Reading and checking the CSV...';
     try {
       const rows = parseCsv(await readFile(file, false));
-      const result = await intakeApi('/prospects/preview', { source: 'csv', rows });
+      const result = await intakeApi(intakePath('preview'), { source: 'csv', rows });
       renderIntakePreview(result);
       intakeImportStatus.className = result.valid_count ? 'intake-status is-success' : 'intake-status is-error';
       intakeImportStatus.textContent = result.valid_count
         ? 'Review the list below. Duplicate and invalid rows will be skipped.'
         : 'No rows are ready to add.';
+    } catch (error) {
+      intakeImportStatus.className = 'intake-status is-error';
+      intakeImportStatus.textContent = error.message;
+    }
+  });
+
+  document.getElementById('partner-csv-file').addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    openIntake('csv', intakeState.lastFocused, 'partner');
+    intakeImportStatus.textContent = 'Reading and checking the partner CSV...';
+    try {
+      const rows = parseCsv(await readFile(file, false)).map((row) => ({
+        partner: row.contact,
+        organization: row.business,
+        email: row.email,
+        phone: row.phone,
+        website: row.website,
+        location: row.location,
+        partner_type: row.partner_type,
+        notes: row.notes
+      }));
+      const result = await intakeApi(intakePath('preview'), { source: 'csv', rows });
+      renderIntakePreview(result);
+      intakeImportStatus.className = result.valid_count ? 'intake-status is-success' : 'intake-status is-error';
+      intakeImportStatus.textContent = result.valid_count
+        ? 'Review the list below. Duplicate and invalid rows will be skipped.'
+        : 'No partner rows are ready to add.';
     } catch (error) {
       intakeImportStatus.className = 'intake-status is-error';
       intakeImportStatus.textContent = error.message;
@@ -3249,14 +3435,15 @@
     if (event.target === intakeModal) closeIntake();
   });
 
-  async function importReadyProspects(askFirst = true) {
+  async function importReadyRecords(askFirst = true) {
     if (!intakeState.rows.length || intakeImport.disabled) return;
-    if (askFirst && !window.confirm('Add the ready prospects to your assigned Pipeline now?')) return;
+    const noun = intakeState.kind === 'partner' ? 'partners' : 'prospects';
+    if (askFirst && !window.confirm(`Add the ready ${noun} to your assigned book now?`)) return;
     intakeImport.disabled = true;
     intakeImportStatus.className = 'intake-status';
-    intakeImportStatus.textContent = 'Adding prospects to your Pipeline...';
+    intakeImportStatus.textContent = `Adding ${noun} to your book...`;
     try {
-      const result = await intakeApi('/prospects/import', {
+      const result = await intakeApi(intakePath('import'), {
         source: intakeState.source,
         rows: intakeState.rows,
         request_id: newRequestId()
@@ -3275,7 +3462,7 @@
   }
 
   intakeImport.addEventListener('click', async () => {
-    await importReadyProspects(true);
+    await importReadyRecords(true);
   });
 
   /* ─── RESPONSIVE TABLE LABELS ───────────────────────────────────────────
@@ -3389,7 +3576,7 @@
   /* Builds the action row for a record or partner. `name` is used to fall back to
      a web search when there is no site on file, which is the usual state for the
      prospects with the weakest web presence. */
-  function actionBar(o, name, canCompose) {
+  function actionBar(o, name, canCompose, recordKind = 'prospect') {
     const phone = o.phone, email = o.email, site = o.website, notion = o.url;
     let a = '';
     if (phone) {
@@ -3399,7 +3586,7 @@
     }
     if (email && canCompose && o.id) {
       a += `<button type="button" class="act act-primary js-compose-email" `
-        + `data-record-id="${esc(o.id)}">${ICON.mail}<span>Compose</span></button>`;
+        + `data-record-id="${esc(o.id)}" data-record-kind="${esc(recordKind)}">${ICON.mail}<span>Compose</span></button>`;
     } else if (email) {
       a += actBtn('mailto:' + email, 'mail', 'Email', true);
     }
@@ -3424,7 +3611,7 @@
     return html;
   }
 
-  async function loadEmailCompose(recordId, templateId) {
+  async function loadEmailCompose(recordId, templateId, recordKind = 'prospect') {
     const status = document.getElementById('email-status');
     emailState = null;
     status.className = 'email-status';
@@ -3445,7 +3632,8 @@
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         record_id: recordId,
-        template_id: templateId || 'local_business'
+        record_kind: recordKind,
+        template_id: templateId || (recordKind === 'partner' ? 'partner_msp' : 'local_business')
       })
     });
     const result = await resp.json().catch(() => ({}));
@@ -3457,7 +3645,7 @@
       throw new Error(result.message || 'The email draft could not be built.');
     }
 
-    emailState = result;
+    emailState = { ...result, record_kind: result.record_kind || recordKind };
     emailTemplate.innerHTML = result.templates.map(template =>
       `<option value="${esc(template.id)}">${esc(template.label)}</option>`
     ).join('');
@@ -3495,7 +3683,11 @@
     document.getElementById('email-title').textContent = 'Compose email';
     document.getElementById('email-sub').textContent = 'Review every word before sending.';
     try {
-      await loadEmailCompose(btn.dataset.recordId, 'local_business');
+      await loadEmailCompose(
+        btn.dataset.recordId,
+        btn.dataset.recordKind === 'partner' ? 'partner_msp' : 'local_business',
+        btn.dataset.recordKind || 'prospect'
+      );
       emailTemplate.focus();
     } catch (error) {
       const status = document.getElementById('email-status');
@@ -3507,7 +3699,7 @@
   emailTemplate.addEventListener('change', async () => {
     if (!emailState) return;
     try {
-      await loadEmailCompose(emailState.record_id, emailTemplate.value);
+      await loadEmailCompose(emailState.record_id, emailTemplate.value, emailState.record_kind || 'prospect');
     } catch (error) {
       const status = document.getElementById('email-status');
       status.className = 'email-status is-error';
@@ -3552,6 +3744,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           record_id: emailState.record_id,
+          record_kind: emailState.record_kind || 'prospect',
           review_token: emailState.review_token,
           subject: emailSubject.value,
           body: emailBody.value,
@@ -3612,6 +3805,7 @@
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           record_id: emailState.record_id,
+          record_kind: emailState.record_kind || 'prospect',
           review_token: emailState.review_token,
           request_id: requestId,
           reviewed: true,
@@ -3849,16 +4043,74 @@
   function renderContractorDashboard() {
     if (isAdmin) return;
     const safeKpis = pipeline.kpis || {};
+    const partners = partnerRecords || [];
+    const recruitingPartners = partners.filter((partner) =>
+      !['Agreement Active', 'Dormant', 'Declined'].includes(partner.stage)
+    );
+    const activePartners = partners.filter((partner) => partner.stage === 'Agreement Active');
+    const activeClients = records.filter((record) => record.is_active);
+    const activeDeals = records.filter((record) => record.is_forecastable && !record.is_active);
+    const prospects = records.filter((record) => !record.is_active);
+    const openConversations = prospects
+      .filter((record) => record.is_open)
+      .sort((a, b) => (b.days_quiet ?? -1) - (a.days_quiet ?? -1));
+
     document.getElementById('contractor-assigned').textContent =
-      fmt(safeKpis.assigned_prospects || records.length || 0);
+      fmt(prospects.length || safeKpis.assigned_prospects || 0);
+    document.getElementById('contractor-clients').textContent = fmt(activeClients.length);
     document.getElementById('contractor-open').textContent =
-      fmt(safeKpis.open_prospects || 0);
-    document.getElementById('contractor-reachable').textContent =
-      fmt(safeKpis.reachable_prospects || 0);
+      fmt(activeDeals.length);
+    document.getElementById('contractor-recruiting-partners').textContent =
+      fmt(recruitingPartners.length);
+    document.getElementById('contractor-active-partners').textContent =
+      fmt(activePartners.length);
+
+    const quietLabel = (value) => value === null || value === undefined
+      ? 'Not logged' : value === 0 ? 'Today' : `${value} days`;
+    const empty = (message) => `<div class="empty-state">${esc(message)}</div>`;
+    const partnerTable = (rows) => rows.length ? `<table class="mini-table">
+      <thead><tr><th>Partner</th><th>Organization</th><th>Type</th><th>Stage</th><th>Last Contact</th><th>Reach Out</th></tr></thead>
+      <tbody>${rows.map((partner) => `<tr>
+        <td><span class="name">${esc(partner.partner || 'Not named')}</span></td>
+        <td>${esc(partner.organization || 'Not listed')}</td>
+        <td>${esc(partner.type || 'Not classified')}</td>
+        <td>${esc(partner.stage || 'Identified')}</td>
+        <td>${esc(quietLabel(partner.days_quiet))}</td>
+        <td>${actionBar(partner, partner.organization || partner.partner, true, 'partner')}</td>
+      </tr>`).join('')}</tbody></table>` : empty('No partner records in this section yet.');
+    const prospectTable = (rows, includeActions = true) => rows.length ? `<table class="mini-table">
+      <thead><tr><th>Business</th><th>Stage</th><th>Contact</th><th>Last Contact</th>${includeActions ? '<th>Reach Out</th>' : ''}</tr></thead>
+      <tbody>${rows.map((record) => `<tr>
+        <td><span class="name">${esc(record.name || record.business || 'Prospect')}</span></td>
+        <td>${esc(record.stage || 'Unstaged')}</td>
+        <td>${esc(record.contact || 'Not named')}</td>
+        <td>${esc(quietLabel(record.days_quiet))}</td>
+        ${includeActions ? `<td>${actionBar(record, record.name, true)}</td>` : ''}
+      </tr>`).join('')}</tbody></table>` : empty('No records in this section yet.');
+
+    document.getElementById('contractor-partner-recruitment').innerHTML =
+      partnerTable(recruitingPartners);
+    document.getElementById('contractor-active-partner-book').innerHTML =
+      partnerTable(activePartners);
+    const stageOrder = ['Identified', 'Contacted', 'In Conversation', 'Terms Discussed'];
+    document.getElementById('contractor-partner-stages').innerHTML =
+      `<div class="compact-list">${stageOrder.map((stage) => `<div class="compact-list-item">
+        <div><div class="compact-list-name">${esc(stage)}</div><div class="compact-list-meta">Partner recruitment stage</div></div>
+        <span class="state-chip${stage === 'In Conversation' ? ' is-live' : ''}">${fmt(recruitingPartners.filter((partner) => partner.stage === stage).length)}</span>
+      </div>`).join('')}</div>`;
+    document.getElementById('contractor-follow-up').innerHTML =
+      prospectTable(openConversations);
+    document.getElementById('contractor-deals').innerHTML =
+      prospectTable(activeDeals);
+    document.getElementById('contractor-client-book').innerHTML =
+      prospectTable(activeClients);
 
     const root = document.getElementById('contractor-records');
     if (!records.length) {
       root.innerHTML = '<div class="empty-state">No prospects are currently assigned to you.</div>';
+      document.querySelectorAll('#contractor-dashboard .mini-table').forEach((table) => {
+        labelTables(table.parentElement);
+      });
       return;
     }
     root.innerHTML = `<table class="mini-table">
@@ -3891,6 +4143,9 @@
           open();
         }
       });
+    });
+    document.querySelectorAll('#contractor-dashboard .mini-table').forEach((table) => {
+      labelTables(table.parentElement);
     });
   }
 
