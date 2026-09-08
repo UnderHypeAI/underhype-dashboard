@@ -1537,9 +1537,9 @@
       <div class="card-title">Build Your Pipeline</div>
       <div class="contractor-intro">Add prospects here and they will be assigned only to your account. Every import is checked before anything is written to the CRM.</div>
       <div class="intake-actions">
-        <button class="intake-choice" id="intake-card-button" type="button">
-          <strong>Scan a business card</strong>
-          <span>Take a photo or upload an image, then verify the extracted contact.</span>
+      <button class="intake-choice" id="intake-card-button" type="button">
+        <strong>Scan a business card</strong>
+        <span>Take a photo or upload an image. Valid new contacts are added automatically.</span>
         </button>
         <button class="intake-choice" id="intake-manual-button" type="button">
           <strong>Add one contact</strong>
@@ -1564,7 +1564,7 @@
     <div class="intake-actions">
       <button class="intake-choice" id="admin-intake-card-button" type="button">
         <strong>Scan a business card</strong>
-        <span>Take a photo or upload an image, then verify the extracted contact.</span>
+        <span>Take a photo or upload an image. Valid new contacts are added automatically.</span>
       </button>
       <button class="intake-choice" id="admin-intake-manual-button" type="button">
         <strong>Add one contact</strong>
@@ -3131,8 +3131,16 @@
       const row = result.rows?.[0]?.data || {};
       fillIntakeForm(row);
       renderIntakePreview(result);
-      intakeStatus.className = 'intake-status is-success';
-      intakeStatus.textContent = 'Card read. Verify every field before adding it.';
+      if (result.valid_count === 1 && !result.duplicate_count && !result.invalid_count) {
+        intakeStatus.className = 'intake-status is-success';
+        intakeStatus.textContent = 'Card read. Adding the contact to your Pipeline...';
+        await importReadyProspects(false);
+      } else {
+        intakeStatus.className = 'intake-status is-error';
+        intakeStatus.textContent = result.duplicate_count
+          ? 'This card appears to match an existing Pipeline record.'
+          : 'The card needs attention before it can be added.';
+      }
     } catch (error) {
       intakeStatus.className = 'intake-status is-error';
       intakeStatus.textContent = error.message;
@@ -3241,9 +3249,9 @@
     if (event.target === intakeModal) closeIntake();
   });
 
-  intakeImport.addEventListener('click', async () => {
+  async function importReadyProspects(askFirst = true) {
     if (!intakeState.rows.length || intakeImport.disabled) return;
-    if (!window.confirm('Add the ready prospects to your assigned Pipeline now?')) return;
+    if (askFirst && !window.confirm('Add the ready prospects to your assigned Pipeline now?')) return;
     intakeImport.disabled = true;
     intakeImportStatus.className = 'intake-status';
     intakeImportStatus.textContent = 'Adding prospects to your Pipeline...';
@@ -3264,6 +3272,10 @@
       intakeImportStatus.textContent = error.message;
       intakeImport.disabled = false;
     }
+  }
+
+  intakeImport.addEventListener('click', async () => {
+    await importReadyProspects(true);
   });
 
   /* ─── RESPONSIVE TABLE LABELS ───────────────────────────────────────────
