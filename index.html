@@ -1128,6 +1128,63 @@
   }
   .email-status.is-success { color: var(--success); }
   .email-status.is-error { color: var(--danger); }
+  [hidden] { display: none !important; }
+  .viewer-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: 8px;
+    padding: 4px 9px;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .contractor-intro {
+    margin: 4px 0 18px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .review-queue-list {
+    display: grid;
+    gap: 10px;
+  }
+  .review-queue-item {
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: #161514;
+  }
+  .review-queue-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 9px;
+  }
+  .review-queue-name {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .review-queue-meta {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+  }
+  .review-queue-subject {
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+  .review-queue-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 7px;
+  }
   /* ─── MOBILE ──────────────────────────────────────────────────────────────
      This dashboard gets used on a phone as much as a desktop, so phone width
      is a first class layout rather than a shrunken desktop.
@@ -1153,6 +1210,13 @@
     .email-rewrite-row .act { min-height: 40px; }
     .email-actions .act {
       flex: 1 1 100%;
+      justify-content: center;
+      min-height: 40px;
+    }
+    .review-queue-head { flex-direction: column; }
+    .review-queue-actions { width: 100%; }
+    .review-queue-actions .act {
+      flex: 1 1 50%;
       justify-content: center;
       min-height: 40px;
     }
@@ -1317,10 +1381,47 @@
           <span><span class="dot"></span><span id="sync-time">Loading&hellip;</span></span>
           <button class="refresh-button" id="refresh-data" type="button">Refresh</button>
         </div>
+        <div class="viewer-badge" id="viewer-badge">Secure view</div>
       </div>
     </div>
   </header>
 
+  <section id="contractor-dashboard" hidden>
+    <div class="section-title">Assigned Pipeline</div>
+    <div class="contractor-intro">Only prospects assigned to you are shown. Financials, partner terms, and other representatives' pipelines are not included in this view.</div>
+    <div class="grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Assigned Prospects</div>
+        <div class="kpi-value" id="contractor-assigned">0</div>
+        <div class="kpi-sub">Records currently assigned to you.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Open Prospects</div>
+        <div class="kpi-value" id="contractor-open">0</div>
+        <div class="kpi-sub">Open conversations in your pipeline.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Reachable</div>
+        <div class="kpi-value" id="contractor-reachable">0</div>
+        <div class="kpi-sub">Records with a phone number or email.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Your Prospects</div>
+      <div id="contractor-records"></div>
+    </div>
+  </section>
+
+  <section class="module" id="draft-review-module" hidden>
+    <div class="module-head">
+      <div class="module-title">Contractor Email Review</div>
+      <div class="module-tag" id="draft-review-count">0 Waiting</div>
+    </div>
+    <div class="module-sub">Contractor drafts stay here until you review them. Only your authenticated admin session can send through aaron@underhype.ai.</div>
+    <div class="review-queue-list" id="draft-review-list"></div>
+  </section>
+
+  <div id="admin-dashboard">
   <!-- 1. KPI CARDS -->
   <div class="section-title">Where The Business Actually Is</div>
   <div class="grid-5">
@@ -1694,6 +1795,7 @@
     </div>
   </div>
   </div><!-- /collapse-body -->
+  </div><!-- /admin-dashboard -->
 
 </div>
 
@@ -1761,7 +1863,7 @@
         <div class="email-warning" id="email-warning" role="status"></div>
         <label class="email-review-check">
           <input type="checkbox" id="email-reviewed">
-          <span>I reviewed the recipient, subject, and complete message. Send exactly this version.</span>
+          <span id="email-review-copy">I reviewed the recipient, subject, and complete message. Send exactly this version.</span>
         </label>
         <div class="email-status" id="email-status" role="status" aria-live="polite"></div>
         <div class="email-actions">
@@ -1801,6 +1903,17 @@
   /* ─── LOAD DATA ─── */
   const API_BASE = 'https://underhype.ai/api/prospecting';
   const SESSION_KEY = 'underhype_prospecting_session';
+  const sessionStore = {
+    get() {
+      try { return localStorage.getItem(SESSION_KEY) || ''; } catch (_) { return ''; }
+    },
+    set(value) {
+      try { localStorage.setItem(SESSION_KEY, value); } catch (_) {}
+    },
+    remove() {
+      try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+    }
+  };
   const accessOverlay = document.getElementById('access-overlay');
   const accessStatus = document.getElementById('access-status');
   const accessLogin = document.getElementById('access-login');
@@ -1810,10 +1923,10 @@
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   const returnedToken = fragment.get('access_token');
   if (returnedToken) {
-    localStorage.setItem(SESSION_KEY, returnedToken);
+    sessionStore.set(returnedToken);
     history.replaceState(null, '', window.location.pathname + window.location.search);
   }
-  const sessionToken = returnedToken || localStorage.getItem(SESSION_KEY) || '';
+  const sessionToken = returnedToken || sessionStore.get();
   const authHeaders = () => sessionToken
     ? { 'Authorization': 'Bearer ' + sessionToken }
     : {};
@@ -1873,6 +1986,15 @@
 
   const meta = data._meta || {};
   const pipeline = data.pipeline || {};
+  const viewer = meta.viewer || {};
+  const isAdmin = viewer.role === 'admin';
+  const adminDashboard = document.getElementById('admin-dashboard');
+  const contractorDashboard = document.getElementById('contractor-dashboard');
+  adminDashboard.hidden = !isAdmin;
+  contractorDashboard.hidden = isAdmin;
+  document.getElementById('draft-review-module').hidden = !isAdmin;
+  document.getElementById('viewer-badge').textContent =
+    `${viewer.name || viewer.email || 'Signed in'} · ${isAdmin ? 'Admin' : 'Contractor'}`;
   const kpis = pipeline.kpis || {};
   const funnel = pipeline.funnel || {};
   const engagementModels = pipeline.engagement_models || {};
@@ -2548,6 +2670,8 @@
   const emailRewriteInstruction = document.getElementById('email-rewrite-instruction');
   const emailSubject = document.getElementById('email-subject');
   const emailBody = document.getElementById('email-body');
+  const emailMailApp = document.getElementById('email-mail-app');
+  const emailReviewCopy = document.getElementById('email-review-copy');
   let emailState = null;
   let emailLastFocused = null;
 
@@ -2730,13 +2854,20 @@
 
   async function loadEmailCompose(recordId, templateId) {
     const status = document.getElementById('email-status');
+    emailState = null;
     status.className = 'email-status';
     status.textContent = 'Building the draft from the CRM record...';
     emailSend.disabled = true;
-    emailSend.textContent = 'Send email';
+    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
     delete emailSend.dataset.requestId;
-    emailTemplate.disabled = false;
+    emailTemplate.innerHTML = '<option>Loading draft...</option>';
+    emailTemplate.disabled = true;
     emailReviewed.checked = false;
+    emailMailApp.hidden = !isAdmin;
+    document.getElementById('email-from').value = '';
+    document.getElementById('email-to').value = '';
+    emailSubject.value = '';
+    emailBody.value = '';
     const resp = await fetch(API_BASE + '/email/compose', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
@@ -2748,7 +2879,7 @@
     const result = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       if (resp.status === 401 || resp.status === 403) {
-        localStorage.removeItem(SESSION_KEY);
+        sessionStore.remove();
         showSignIn('Your secure session has expired.');
       }
       throw new Error(result.message || 'The email draft could not be built.');
@@ -2759,10 +2890,11 @@
       `<option value="${esc(template.id)}">${esc(template.label)}</option>`
     ).join('');
     emailTemplate.value = result.template.id;
+    emailTemplate.disabled = false;
     document.getElementById('email-template-help').textContent =
       result.template.description || '';
     document.getElementById('email-from').value =
-      `${result.from.name} <${result.from.email}>`;
+      result.from.label || `${result.from.name} <${result.from.email}>`;
     document.getElementById('email-to').value = result.to;
     emailSubject.value = result.subject;
     emailBody.value = result.body;
@@ -2772,7 +2904,14 @@
     const warning = document.getElementById('email-warning');
     warning.textContent = (result.warnings || []).join(' ');
     warning.classList.toggle('show', Boolean(warning.textContent));
-    status.textContent = 'Draft ready. Edit it here, then confirm your review.';
+    emailMailApp.hidden = !isAdmin;
+    emailReviewCopy.textContent = isAdmin
+      ? 'I reviewed the recipient, subject, and complete message. Send exactly this version.'
+      : 'I reviewed the recipient, subject, and complete message. Submit this version to Aaron for approval.';
+    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
+    status.textContent = isAdmin
+      ? 'Draft ready. Edit it here, then confirm your review.'
+      : 'Draft ready. Edit it here, then submit it to Aaron for approval.';
   }
 
   document.addEventListener('click', async function (ev) {
@@ -2784,7 +2923,9 @@
     document.body.style.overflow = 'hidden';
     emailModal.scrollTop = 0;
     document.getElementById('email-title').textContent = 'Compose email';
-    document.getElementById('email-sub').textContent = 'Review every word before sending.';
+    document.getElementById('email-sub').textContent = isAdmin
+      ? 'Review every word before sending.'
+      : 'This cannot send from Aaron’s mailbox. Submit it for his review.';
     try {
       await loadEmailCompose(btn.dataset.recordId, 'local_business');
       emailTemplate.focus();
@@ -2813,7 +2954,7 @@
   function requireFreshEmailReview() {
     emailReviewed.checked = false;
     emailSend.disabled = true;
-    emailSend.textContent = 'Send email';
+    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
     delete emailSend.dataset.requestId;
   }
 
@@ -2852,7 +2993,7 @@
       const result = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         if (resp.status === 401 || resp.status === 403) {
-          localStorage.removeItem(SESSION_KEY);
+          sessionStore.remove();
           showSignIn('Your secure session has expired.');
         }
         throw new Error(result.message || 'Cloudflare AI could not generate a revision.');
@@ -2863,7 +3004,9 @@
       emailSubject.value = result.subject;
       emailBody.value = result.body;
       rewriteStatus.className = 'email-rewrite-status is-success';
-      rewriteStatus.textContent = 'New version ready. Review every word before sending.';
+      rewriteStatus.textContent = isAdmin
+        ? 'New version ready. Review every word before sending.'
+        : 'New version ready. Review every word before submitting it.';
     } catch (error) {
       rewriteStatus.className = 'email-rewrite-status is-error';
       rewriteStatus.textContent = error.message || 'Cloudflare AI could not generate a revision.';
@@ -2888,23 +3031,25 @@
     const subject = emailSubject.value.trim();
     const body = emailBody.value.trim();
     if (!subject || !body) return;
-    if (!window.confirm(`Send this email now to ${emailState.to}?`)) return;
+    if (isAdmin && !window.confirm(`Send this email now to ${emailState.to}?`)) return;
 
     const status = document.getElementById('email-status');
-    const requestId = emailSend.dataset.requestId || newRequestId();
-    emailSend.dataset.requestId = requestId;
+    const requestId = isAdmin
+      ? (emailSend.dataset.requestId || newRequestId())
+      : '';
+    if (requestId) emailSend.dataset.requestId = requestId;
     emailSend.disabled = true;
     emailTemplate.disabled = true;
     status.className = 'email-status';
-    status.textContent = 'Sending through Gmail...';
+    status.textContent = isAdmin ? 'Sending through Gmail...' : 'Submitting to Aaron for review...';
     try {
-      const resp = await fetch(API_BASE + '/email/send', {
+      const resp = await fetch(API_BASE + (isAdmin ? '/email/send' : '/email/drafts'), {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           record_id: emailState.record_id,
           review_token: emailState.review_token,
-          request_id: requestId,
+          ...(isAdmin ? { request_id: requestId, draft_id: emailState.draft_id || '' } : {}),
           reviewed: true,
           subject,
           body
@@ -2913,18 +3058,22 @@
       const result = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         if (resp.status === 401 || resp.status === 403) {
-          localStorage.removeItem(SESSION_KEY);
+          sessionStore.remove();
           showSignIn('Your secure session has expired.');
         }
         throw new Error(result.message || 'Gmail could not send this email.');
       }
       status.className = 'email-status is-success';
-      status.textContent = `Sent to ${result.recipient} and logged for ${result.date}.`;
-      emailSend.textContent = 'Sent';
+      status.textContent = isAdmin
+        ? `Sent to ${result.recipient} and logged for ${result.date}.`
+        : 'Submitted to Aaron for review. Nothing has been sent.';
+      emailSend.textContent = isAdmin ? 'Sent' : 'Submitted';
       setTimeout(() => window.location.reload(), 1100);
     } catch (error) {
       status.className = 'email-status is-error';
-      status.textContent = error.message || 'Gmail could not send this email.';
+      status.textContent = error.message || (isAdmin
+        ? 'Gmail could not send this email.'
+        : 'The draft could not be submitted.');
       emailSend.disabled = false;
       emailTemplate.disabled = false;
     }
@@ -2989,7 +3138,7 @@
       const result = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         if (resp.status === 401 || resp.status === 403) {
-          localStorage.removeItem(SESSION_KEY);
+          sessionStore.remove();
           showSignIn('Your secure session has expired.');
         }
         throw new Error(result.message || 'Activity could not be logged.');
@@ -3136,6 +3285,182 @@
     html += activityLogger(r);
     return html + '</div>';
   }
+
+  function renderContractorDashboard() {
+    if (isAdmin) return;
+    const safeKpis = pipeline.kpis || {};
+    document.getElementById('contractor-assigned').textContent =
+      fmt(safeKpis.assigned_prospects || records.length || 0);
+    document.getElementById('contractor-open').textContent =
+      fmt(safeKpis.open_prospects || 0);
+    document.getElementById('contractor-reachable').textContent =
+      fmt(safeKpis.reachable_prospects || 0);
+
+    const root = document.getElementById('contractor-records');
+    if (!records.length) {
+      root.innerHTML = '<div class="empty-state">No prospects are currently assigned to you.</div>';
+      return;
+    }
+    root.innerHTML = `<table class="mini-table">
+      <thead><tr><th>Business</th><th>Stage</th><th>Contact</th><th>Reach</th><th>Quiet</th></tr></thead>
+      <tbody>${records.map((r, index) => {
+        const reach = [r.phone ? 'phone' : '', r.email ? 'email' : ''].filter(Boolean).join(' + ');
+        const quiet = r.days_quiet === null || r.days_quiet === undefined
+          ? 'not logged'
+          : (r.days_quiet === 0 ? 'today' : `${r.days_quiet}d`);
+        return `<tr class="drill-row js-contractor-record" tabindex="0" data-record-index="${index}">
+          <td><span class="name">${esc(r.name || r.business || 'Prospect')}</span></td>
+          <td>${esc(r.stage || 'Unstaged')}</td>
+          <td>${esc(r.contact || 'Not named')}</td>
+          <td>${esc(reach || 'Not on file')}</td>
+          <td>${esc(quiet)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+    labelTables(root);
+    root.querySelectorAll('.js-contractor-record').forEach((row) => {
+      const open = () => {
+        const record = records[Number(row.dataset.recordIndex)];
+        if (record) openDrill(record.name || record.business || 'Prospect',
+          'Assigned prospect', recordCard(record));
+      };
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          open();
+        }
+      });
+    });
+  }
+
+  async function openContractorDraft(draftId, trigger) {
+    emailLastFocused = trigger;
+    emailState = null;
+    const status = document.getElementById('email-status');
+    status.className = 'email-status';
+    status.textContent = 'Opening the contractor draft...';
+    emailModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    emailModal.scrollTop = 0;
+    emailTemplate.innerHTML = '<option>Loading draft...</option>';
+    emailTemplate.disabled = true;
+    emailReviewed.checked = false;
+    emailSend.disabled = true;
+    emailMailApp.hidden = true;
+    document.getElementById('email-from').value = '';
+    document.getElementById('email-to').value = '';
+    emailSubject.value = '';
+    emailBody.value = '';
+    try {
+      const resp = await fetch(API_BASE + '/email/drafts/review', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft_id: draftId })
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(result.message || 'The contractor draft could not be opened.');
+      emailState = result;
+      emailTemplate.innerHTML = '<option value="contractor_draft">Contractor draft</option>';
+      emailTemplate.disabled = true;
+      document.getElementById('email-template-help').textContent =
+        result.template.description || '';
+      document.getElementById('email-from').value =
+        result.from.label || `${result.from.name} <${result.from.email}>`;
+      document.getElementById('email-to').value = result.to;
+      emailSubject.value = result.subject;
+      emailBody.value = result.body;
+      emailReviewed.checked = false;
+      emailSend.disabled = true;
+      emailSend.textContent = 'Send email';
+      emailMailApp.hidden = false;
+      emailReviewCopy.textContent =
+        'I reviewed the recipient, subject, and complete message. Send exactly this version.';
+      document.getElementById('email-title').textContent = 'Review contractor draft';
+      document.getElementById('email-sub').textContent =
+        'Edit as needed. Nothing sends until you confirm the complete message.';
+      document.getElementById('email-warning').classList.remove('show');
+      document.getElementById('email-rewrite-status').textContent = '';
+      status.textContent = 'Contractor draft ready for your review.';
+      emailSubject.focus();
+    } catch (error) {
+      status.className = 'email-status is-error';
+      status.textContent = error.message || 'The contractor draft could not be opened.';
+    }
+  }
+
+  async function loadContractorDraftQueue() {
+    if (!isAdmin) return;
+    const root = document.getElementById('draft-review-list');
+    try {
+      const resp = await fetch(API_BASE + '/email/drafts', {
+        headers: authHeaders(),
+        cache: 'no-store'
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(result.message || 'The review queue could not be loaded.');
+      const drafts = result.drafts || [];
+      document.getElementById('draft-review-count').textContent =
+        `${drafts.length} Waiting`;
+      if (!drafts.length) {
+        root.innerHTML = '<div class="empty-state">No contractor drafts are waiting for review.</div>';
+        return;
+      }
+      root.innerHTML = drafts.map((draft) => {
+        const submitted = draft.submitted_at
+          ? new Date(draft.submitted_at).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+          })
+          : 'Time unavailable';
+        const contractor = draft.contractor?.name || draft.contractor?.email || 'Contractor';
+        return `<article class="review-queue-item" data-draft-id="${escAttr(draft.id)}">
+          <div class="review-queue-head">
+            <div>
+              <div class="review-queue-name">${esc(draft.record_name || 'Prospect')}</div>
+              <div class="review-queue-meta">${esc(contractor)} · ${esc(submitted)} · ${esc(draft.recipient)}</div>
+            </div>
+            <div class="review-queue-actions">
+              <button type="button" class="act js-reject-draft">Reject</button>
+              <button type="button" class="act act-primary js-review-draft">Review</button>
+            </div>
+          </div>
+          <div class="review-queue-subject">${esc(draft.subject || 'No subject')}</div>
+        </article>`;
+      }).join('');
+      root.querySelectorAll('.js-review-draft').forEach((button) => {
+        button.addEventListener('click', () => {
+          const item = button.closest('.review-queue-item');
+          openContractorDraft(item.dataset.draftId, button);
+        });
+      });
+      root.querySelectorAll('.js-reject-draft').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const item = button.closest('.review-queue-item');
+          if (!window.confirm('Reject this contractor draft without sending it?')) return;
+          button.disabled = true;
+          try {
+            const resp = await fetch(API_BASE + '/email/drafts/reject', {
+              method: 'POST',
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ draft_id: item.dataset.draftId })
+            });
+            const result = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(result.message || 'The draft could not be rejected.');
+            item.remove();
+            await loadContractorDraftQueue();
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = error.message || 'Try again';
+          }
+        });
+      });
+    } catch (error) {
+      root.innerHTML = `<div class="empty-state">${esc(error.message || 'The review queue could not be loaded.')}</div>`;
+    }
+  }
+
+  renderContractorDashboard();
+  loadContractorDraftQueue();
 
   /* True when the Organization column carries no information beyond the
      Partner column, which happens when we do not yet know a human contact at
