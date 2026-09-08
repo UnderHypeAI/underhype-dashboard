@@ -1550,10 +1550,6 @@
           <span>Preview and deduplicate a list of up to 100 prospects.</span>
         </button>
       </div>
-      <input class="intake-file-input" id="intake-card-file" type="file"
-        accept="image/jpeg,image/png,image/webp" capture="environment">
-      <input class="intake-file-input" id="intake-csv-file" type="file"
-        accept=".csv,text/csv">
     </div>
     <div class="card" style="margin-top:16px;">
       <div class="card-title">Your Prospects</div>
@@ -1562,6 +1558,24 @@
   </section>
 
   <div id="admin-dashboard">
+  <div class="card intake-card">
+    <div class="card-title">Build Your Pipeline</div>
+    <div class="contractor-intro">Add prospects directly to the CRM. Every import is checked before anything is written and assigned to your authenticated account.</div>
+    <div class="intake-actions">
+      <button class="intake-choice" id="admin-intake-card-button" type="button">
+        <strong>Scan a business card</strong>
+        <span>Take a photo or upload an image, then verify the extracted contact.</span>
+      </button>
+      <button class="intake-choice" id="admin-intake-manual-button" type="button">
+        <strong>Add one contact</strong>
+        <span>Enter a person or business directly from the console.</span>
+      </button>
+      <button class="intake-choice" id="admin-intake-csv-button" type="button">
+        <strong>Upload a CSV</strong>
+        <span>Preview and deduplicate a list of up to 100 prospects.</span>
+      </button>
+    </div>
+  </div>
   <!-- 1. KPI CARDS -->
   <div class="section-title">Where The Business Actually Is</div>
   <div class="grid-5">
@@ -1957,6 +1971,10 @@
     <div class="modal-body" id="drill-body"></div>
   </div>
 </div>
+<input class="intake-file-input" id="intake-card-file" type="file"
+  accept="image/jpeg,image/png,image/webp" capture="environment">
+<input class="intake-file-input" id="intake-csv-file" type="file"
+  accept=".csv,text/csv">
 <div class="modal-backdrop intake-modal" id="intake-modal" role="dialog" aria-modal="true"
   aria-labelledby="intake-title">
   <div class="modal">
@@ -3069,11 +3087,22 @@
   document.getElementById('intake-manual-button').addEventListener('click', (event) => {
     openIntake('manual', event.currentTarget);
   });
+  document.getElementById('admin-intake-manual-button').addEventListener('click', (event) => {
+    openIntake('manual', event.currentTarget);
+  });
   document.getElementById('intake-card-button').addEventListener('click', (event) => {
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-card-file').click();
   });
+  document.getElementById('admin-intake-card-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('intake-card-file').click();
+  });
   document.getElementById('intake-csv-button').addEventListener('click', (event) => {
+    intakeState.lastFocused = event.currentTarget;
+    document.getElementById('intake-csv-file').click();
+  });
+  document.getElementById('admin-intake-csv-button').addEventListener('click', (event) => {
     intakeState.lastFocused = event.currentTarget;
     document.getElementById('intake-csv-file').click();
   });
