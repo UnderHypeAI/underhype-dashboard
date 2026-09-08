@@ -1440,6 +1440,23 @@
     .modal-head { padding: 16px 16px 14px; }
     .modal-title { font-size: 15px; }
     .modal-body { padding: 16px 16px 40px; }
+    .intake-modal .modal {
+      min-height: 100svh;
+      min-height: 100dvh;
+      overscroll-behavior: contain;
+    }
+    .intake-modal .modal-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--card);
+    }
+    .intake-input,
+    .intake-select,
+    .intake-textarea {
+      font-size: 16px;
+      line-height: 1.35;
+    }
     .rec { padding: 13px 14px; }
     .rec-fields { grid-template-columns: 1fr; gap: 10px; }
 
