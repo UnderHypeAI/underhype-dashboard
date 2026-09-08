@@ -1412,15 +1412,6 @@
     </div>
   </section>
 
-  <section class="module" id="draft-review-module" hidden>
-    <div class="module-head">
-      <div class="module-title">Contractor Email Review</div>
-      <div class="module-tag" id="draft-review-count">0 Waiting</div>
-    </div>
-    <div class="module-sub">Contractor drafts stay here until you review them. Only your authenticated admin session can send through aaron@underhype.ai.</div>
-    <div class="review-queue-list" id="draft-review-list"></div>
-  </section>
-
   <div id="admin-dashboard">
   <!-- 1. KPI CARDS -->
   <div class="section-title">Where The Business Actually Is</div>
@@ -1992,7 +1983,6 @@
   const contractorDashboard = document.getElementById('contractor-dashboard');
   adminDashboard.hidden = !isAdmin;
   contractorDashboard.hidden = isAdmin;
-  document.getElementById('draft-review-module').hidden = !isAdmin;
   document.getElementById('viewer-badge').textContent =
     `${viewer.name || viewer.email || 'Signed in'} · ${isAdmin ? 'Admin' : 'Contractor'}`;
   const kpis = pipeline.kpis || {};
@@ -2858,12 +2848,12 @@
     status.className = 'email-status';
     status.textContent = 'Building the draft from the CRM record...';
     emailSend.disabled = true;
-    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
+    emailSend.textContent = 'Send email';
     delete emailSend.dataset.requestId;
     emailTemplate.innerHTML = '<option>Loading draft...</option>';
     emailTemplate.disabled = true;
     emailReviewed.checked = false;
-    emailMailApp.hidden = !isAdmin;
+    emailMailApp.hidden = false;
     document.getElementById('email-from').value = '';
     document.getElementById('email-to').value = '';
     emailSubject.value = '';
@@ -2904,14 +2894,12 @@
     const warning = document.getElementById('email-warning');
     warning.textContent = (result.warnings || []).join(' ');
     warning.classList.toggle('show', Boolean(warning.textContent));
-    emailMailApp.hidden = !isAdmin;
-    emailReviewCopy.textContent = isAdmin
-      ? 'I reviewed the recipient, subject, and complete message. Send exactly this version.'
-      : 'I reviewed the recipient, subject, and complete message. Submit this version to Aaron for approval.';
-    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
-    status.textContent = isAdmin
-      ? 'Draft ready. Edit it here, then confirm your review.'
-      : 'Draft ready. Edit it here, then submit it to Aaron for approval.';
+    emailMailApp.hidden = false;
+    emailReviewCopy.textContent =
+      'I reviewed the recipient, subject, and complete message. Send exactly this version.';
+    emailSend.textContent = 'Send email';
+    status.textContent =
+      'Draft ready. Edit it here, generate a revision if needed, then confirm your review.';
   }
 
   document.addEventListener('click', async function (ev) {
@@ -2923,9 +2911,7 @@
     document.body.style.overflow = 'hidden';
     emailModal.scrollTop = 0;
     document.getElementById('email-title').textContent = 'Compose email';
-    document.getElementById('email-sub').textContent = isAdmin
-      ? 'Review every word before sending.'
-      : 'This cannot send from Aaron’s mailbox. Submit it for his review.';
+    document.getElementById('email-sub').textContent = 'Review every word before sending.';
     try {
       await loadEmailCompose(btn.dataset.recordId, 'local_business');
       emailTemplate.focus();
@@ -2954,7 +2940,7 @@
   function requireFreshEmailReview() {
     emailReviewed.checked = false;
     emailSend.disabled = true;
-    emailSend.textContent = isAdmin ? 'Send email' : 'Submit for review';
+    emailSend.textContent = 'Send email';
     delete emailSend.dataset.requestId;
   }
 
@@ -3004,9 +2990,7 @@
       emailSubject.value = result.subject;
       emailBody.value = result.body;
       rewriteStatus.className = 'email-rewrite-status is-success';
-      rewriteStatus.textContent = isAdmin
-        ? 'New version ready. Review every word before sending.'
-        : 'New version ready. Review every word before submitting it.';
+      rewriteStatus.textContent = 'New version ready. Review every word before sending.';
     } catch (error) {
       rewriteStatus.className = 'email-rewrite-status is-error';
       rewriteStatus.textContent = error.message || 'Cloudflare AI could not generate a revision.';
@@ -3031,25 +3015,23 @@
     const subject = emailSubject.value.trim();
     const body = emailBody.value.trim();
     if (!subject || !body) return;
-    if (isAdmin && !window.confirm(`Send this email now to ${emailState.to}?`)) return;
+    if (!window.confirm(`Send this email now to ${emailState.to}?`)) return;
 
     const status = document.getElementById('email-status');
-    const requestId = isAdmin
-      ? (emailSend.dataset.requestId || newRequestId())
-      : '';
+    const requestId = emailSend.dataset.requestId || newRequestId();
     if (requestId) emailSend.dataset.requestId = requestId;
     emailSend.disabled = true;
     emailTemplate.disabled = true;
     status.className = 'email-status';
-    status.textContent = isAdmin ? 'Sending through Gmail...' : 'Submitting to Aaron for review...';
+    status.textContent = 'Sending through Gmail...';
     try {
-      const resp = await fetch(API_BASE + (isAdmin ? '/email/send' : '/email/drafts'), {
+      const resp = await fetch(API_BASE + '/email/send', {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           record_id: emailState.record_id,
           review_token: emailState.review_token,
-          ...(isAdmin ? { request_id: requestId, draft_id: emailState.draft_id || '' } : {}),
+          request_id: requestId,
           reviewed: true,
           subject,
           body
@@ -3064,16 +3046,12 @@
         throw new Error(result.message || 'Gmail could not send this email.');
       }
       status.className = 'email-status is-success';
-      status.textContent = isAdmin
-        ? `Sent to ${result.recipient} and logged for ${result.date}.`
-        : 'Submitted to Aaron for review. Nothing has been sent.';
-      emailSend.textContent = isAdmin ? 'Sent' : 'Submitted';
+      status.textContent = `Sent to ${result.recipient} and logged for ${result.date}.`;
+      emailSend.textContent = 'Sent';
       setTimeout(() => window.location.reload(), 1100);
     } catch (error) {
       status.className = 'email-status is-error';
-      status.textContent = error.message || (isAdmin
-        ? 'Gmail could not send this email.'
-        : 'The draft could not be submitted.');
+      status.textContent = error.message || 'Gmail could not send this email.';
       emailSend.disabled = false;
       emailTemplate.disabled = false;
     }
@@ -3460,7 +3438,6 @@
   }
 
   renderContractorDashboard();
-  loadContractorDraftQueue();
 
   /* True when the Organization column carries no information beyond the
      Partner column, which happens when we do not yet know a human contact at
