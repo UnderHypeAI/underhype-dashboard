@@ -1148,6 +1148,21 @@
     font-size: 12px;
     line-height: 1.55;
   }
+  .gmail-connection {
+    margin: 8px 0 20px;
+    padding: 12px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .gmail-connection-copy { min-width: 0; overflow-wrap: anywhere; }
+  .gmail-connection small { display: block; color: var(--text-secondary); }
   .intake-card {
     margin: 16px 0;
   }
@@ -1568,6 +1583,14 @@
       </div>
     </div>
   </header>
+
+  <section class="gmail-connection" id="gmail-connection" aria-label="Your sending account" hidden>
+    <div class="gmail-connection-copy">
+      <div id="gmail-status" role="status">Checking your sending account...</div>
+      <small>Console emails send from your connected UnderHype account only.</small>
+    </div>
+    <button class="refresh-button" id="gmail-connect" type="button" disabled>Connect Gmail</button>
+  </section>
 
   <section id="contractor-dashboard" hidden>
     <div class="contractor-flow">
@@ -2248,10 +2271,12 @@
 
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   const returnedToken = fragment.get('access_token');
+  const gmailReturn = fragment.get('gmail');
   if (returnedToken) {
     sessionStore.set(returnedToken);
     history.replaceState(null, '', window.location.pathname + window.location.search);
   }
+  if (gmailReturn) history.replaceState(null, '', window.location.pathname + window.location.search);
   const sessionToken = returnedToken || sessionStore.get();
   const authHeaders = () => sessionToken
     ? { 'Authorization': 'Bearer ' + sessionToken }
@@ -2314,6 +2339,44 @@
   const pipeline = data.pipeline || {};
   const viewer = meta.viewer || {};
   const isAdmin = viewer.role === 'admin';
+  let gmailConnected = isAdmin;
+  const gmailPanel = document.getElementById('gmail-connection');
+  const gmailStatus = document.getElementById('gmail-status');
+  const gmailConnect = document.getElementById('gmail-connect');
+  if (!isAdmin) {
+    gmailPanel.hidden = false;
+    try {
+      const response = await fetch(API_BASE + '/gmail/status', { headers: authHeaders(), cache: 'no-store' });
+      const connection = await response.json();
+      if (!response.ok) throw new Error(connection.message || 'Sending account could not be checked.');
+      gmailConnected = connection.connected === true && connection.email === viewer.email;
+      gmailStatus.textContent = gmailConnected
+        ? `Sending account connected: ${connection.email}`
+        : `Connect ${viewer.email} before sending.${gmailReturn === 'cancelled' ? ' Authorization was cancelled.' : ''}`;
+      gmailConnect.textContent = gmailConnected ? 'Reconnect Gmail' : 'Connect Gmail';
+    } catch (error) {
+      gmailStatus.textContent = error.message || 'Sending account could not be checked. Sending is blocked.';
+    }
+    gmailConnect.disabled = false;
+  }
+  gmailConnect.addEventListener('click', async () => {
+    gmailConnect.disabled = true;
+    gmailStatus.textContent = `Opening Google. Choose ${viewer.email}.`;
+    try {
+      const response = await fetch(API_BASE + '/gmail/connect', {
+        method: 'POST', headers: authHeaders()
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Gmail connection could not be started.');
+      const destination = new URL(result.authorization_url);
+      if (destination.origin !== 'https://underhype.ai' ||
+          destination.pathname !== '/api/prospecting/gmail/authorize') throw new Error('Invalid connection destination.');
+      window.location.assign(destination.href);
+    } catch (error) {
+      gmailStatus.textContent = error.message;
+      gmailConnect.disabled = false;
+    }
+  });
   const adminDashboard = document.getElementById('admin-dashboard');
   const contractorDashboard = document.getElementById('contractor-dashboard');
   adminDashboard.hidden = !isAdmin;
@@ -3573,6 +3636,7 @@
      is a live dial target and not just text to read out. */
   function contactField(label, value, scheme) {
     if (!value) return '';
+    if (scheme !== 'tel' && !isAdmin) return `<div><div class="rec-f-label">${esc(label)}</div><div class="rec-f-value">${esc(String(value))}</div></div>`;
     const href = scheme === 'tel' ? 'tel:' + telHref(value) : 'mailto:' + value;
     return `<div><div class="rec-f-label">${esc(label)}</div>`
       + `<div class="rec-f-value"><a class="rec-link" style="margin-top:0;font-size:12.5px;" `
@@ -3604,7 +3668,7 @@
     if (email && canCompose && o.id) {
       a += `<button type="button" class="act act-primary js-compose-email" `
         + `data-record-id="${esc(o.id)}" data-record-kind="${esc(recordKind)}">${ICON.mail}<span>Compose</span></button>`;
-    } else if (email) {
+    } else if (email && isAdmin) {
       a += actBtn('mailto:' + email, 'mail', 'Email', true);
     }
     if (site) a += actBtn(site, 'globe', 'Website');
@@ -3639,7 +3703,7 @@
     emailTemplate.innerHTML = '<option>Loading draft...</option>';
     emailTemplate.disabled = true;
     emailReviewed.checked = false;
-    emailMailApp.hidden = false;
+    emailMailApp.hidden = !isAdmin;
     document.getElementById('email-from').value = '';
     document.getElementById('email-to').value = '';
     emailSubject.value = '';
@@ -3681,12 +3745,14 @@
     const warning = document.getElementById('email-warning');
     warning.textContent = (result.warnings || []).join(' ');
     warning.classList.toggle('show', Boolean(warning.textContent));
-    emailMailApp.hidden = false;
+    emailMailApp.hidden = !isAdmin;
     emailReviewCopy.textContent =
       'I reviewed the recipient, subject, and complete message. Send exactly this version.';
     emailSend.textContent = 'Send email';
     status.textContent =
-      'Draft ready. Edit it here, generate a revision if needed, then confirm your review.';
+      gmailConnected
+        ? 'Draft ready. Edit it here, generate a revision if needed, then confirm your review.'
+        : 'Draft ready. Close this draft and connect your Gmail account in the console header before sending.';
   }
 
   document.addEventListener('click', async function (ev) {
@@ -3725,7 +3791,7 @@
   });
 
   emailReviewed.addEventListener('change', () => {
-    emailSend.disabled = !emailReviewed.checked || !emailState;
+    emailSend.disabled = !emailReviewed.checked || !emailState || !gmailConnected;
   });
 
   function requireFreshEmailReview() {
@@ -3794,7 +3860,7 @@
   });
 
   document.getElementById('email-mail-app').addEventListener('click', () => {
-    if (!emailState) return;
+    if (!emailState || !isAdmin) return;
     const subject = emailSubject.value;
     const body = emailBody.value;
     window.location.href = `mailto:${emailState.to}`
@@ -3803,11 +3869,11 @@
 
   emailForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    if (!emailState || !emailReviewed.checked) return;
+    if (!emailState || !emailReviewed.checked || !gmailConnected) return;
     const subject = emailSubject.value.trim();
     const body = emailBody.value.trim();
     if (!subject || !body) return;
-    if (!window.confirm(`Send this email now to ${emailState.to}?`)) return;
+    if (!window.confirm(`Send from ${emailState.from.email} to ${emailState.to} now?`)) return;
 
     const status = document.getElementById('email-status');
     const requestId = emailSend.dataset.requestId || newRequestId();
@@ -3832,7 +3898,7 @@
       });
       const result = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        if (resp.status === 401 || resp.status === 403) {
+        if (resp.status === 401 || (resp.status === 403 && result.error !== 'gmail_connection_failed')) {
           sessionStore.remove();
           showSignIn('Your secure session has expired.');
         }
@@ -3845,7 +3911,7 @@
     } catch (error) {
       status.className = 'email-status is-error';
       status.textContent = error.message || 'Gmail could not send this email.';
-      emailSend.disabled = false;
+      emailSend.disabled = !gmailConnected || !emailReviewed.checked;
       emailTemplate.disabled = false;
     }
   });
@@ -4205,7 +4271,7 @@
       emailReviewed.checked = false;
       emailSend.disabled = true;
       emailSend.textContent = 'Send email';
-      emailMailApp.hidden = false;
+      emailMailApp.hidden = !isAdmin;
       emailReviewCopy.textContent =
         'I reviewed the recipient, subject, and complete message. Send exactly this version.';
       document.getElementById('email-title').textContent = 'Review contractor draft';
