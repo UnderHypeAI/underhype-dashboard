@@ -2319,7 +2319,7 @@
   adminDashboard.hidden = !isAdmin;
   contractorDashboard.hidden = isAdmin;
   document.getElementById('viewer-badge').textContent =
-    `${viewer.name || viewer.email || 'Signed in'} · ${isAdmin ? 'Admin' : 'Contractor'}`;
+    `${viewer.name || viewer.email || 'Signed in'} · ${isAdmin ? 'Admin' : 'Business Partner'}`;
   const kpis = pipeline.kpis || {};
   const funnel = pipeline.funnel || {};
   const engagementModels = pipeline.engagement_models || {};
