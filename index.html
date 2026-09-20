@@ -5165,6 +5165,12 @@
       if (r.next_step) {
         html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(r.next_step)}</div>`;
       }
+      /* Same one-tap actions as the contractor path. Compose sends from the
+         admin identity because this is Aaron's console; the standing rule
+         about contractors not sending as Aaron only applies to contractor
+         accounts, which never reach this render. */
+      html += actionBar(r, r.name, true);
+      if (r.id) html += activityLogger(r);
       html += '</div>';
       return html;
     }
