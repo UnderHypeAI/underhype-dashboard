@@ -1773,14 +1773,39 @@
 
       <!-- 6. ACTIVE OPPORTUNITIES -->
       <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Deals with demonstrated interest</div><h2 class="workflow-title">Active Opportunities</h2><div class="workflow-description">Only opportunities beyond initial outreach appear here.</div></div></div>
-        <div class="card"><div class="card-title">Active Deals</div><div id="contractor-deals"></div></div>
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Deals with demonstrated interest</div><h2 class="workflow-title">Active Opportunities</h2><div class="workflow-description">Only opportunities beyond initial outreach appear here. Value shown is what these deals are worth if they close.</div></div></div>
+        <div class="followup-columns" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-title">Pipeline Recurring Revenue</div>
+            <div class="kpi-value currency" id="contractor-pipeline-recurring">0</div>
+            <div class="kpi-sub">Estimated monthly recurring across your open opportunities.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Pipeline One Time Revenue</div>
+            <div class="kpi-value currency" id="contractor-pipeline-onetime">0</div>
+            <div class="kpi-sub">Project revenue across your open opportunities.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Active Deals</div><div id="contractor-deals"></div></div>
       </section>
 
       <!-- 7. ACTIVE CLIENTS -->
       <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Current book of business</div><h2 class="workflow-title">Active Clients</h2><div class="workflow-description">The clients currently assigned to your book.</div></div></div>
-        <div class="card"><div id="contractor-client-book"></div></div>
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Current book of business</div><h2 class="workflow-title">Active Clients</h2><div class="workflow-description">The clients currently assigned to your book, with the value they represent.</div></div></div>
+        <div class="followup-columns" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-title">Closed Won Recurring Revenue</div>
+            <div class="kpi-value currency" id="contractor-won-recurring">0</div>
+            <div class="kpi-sub">Monthly recurring revenue across your active clients.</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Closed Won One Time Revenue</div>
+            <div class="kpi-value currency" id="contractor-won-onetime">0</div>
+            <div class="kpi-sub">Project revenue delivered across your active clients.</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Deals Won Over Time</div><div id="contractor-won-histogram"></div></div>
+        <div class="card" style="margin-top:14px"><div id="contractor-client-book"></div></div>
       </section>
 
     </div>
@@ -4476,6 +4501,26 @@
       prospectTable(activeDeals);
     document.getElementById('contractor-client-book').innerHTML =
       prospectTable(activeClients);
+
+    // Pipeline value: recurring (est_monthly) and one-time (project_revenue)
+    // summed across open opportunities. Closed won value: MRR and
+    // project_revenue across active clients. Contractors see only their own
+    // book's values; other reps' books are filtered out server side.
+    const sumField = (rows, field) => rows.reduce((acc, r) => acc + (Number(r[field]) || 0), 0);
+    const pipelineRecurring = sumField(activeDeals, 'est_monthly');
+    const pipelineOneTime   = sumField(activeDeals, 'project_revenue');
+    const wonRecurring      = sumField(activeClients, 'mrr');
+    const wonOneTime        = sumField(activeClients, 'project_revenue');
+    document.getElementById('contractor-pipeline-recurring').textContent = fmtCurrency(pipelineRecurring);
+    document.getElementById('contractor-pipeline-onetime').textContent   = fmtCurrency(pipelineOneTime);
+    document.getElementById('contractor-won-recurring').textContent      = fmtCurrency(wonRecurring);
+    document.getElementById('contractor-won-onetime').textContent        = fmtCurrency(wonOneTime);
+
+    // Deals won histogram: bucket active clients by close_date. Records
+    // with no close_date are omitted from the chart.
+    const wonDates = activeClients.map(r => r.close_date).filter(Boolean);
+    document.getElementById('contractor-won-histogram').innerHTML =
+      monthlyHistogram(wonDates, 12, 'Deals won per month, last 12 months. Bucketed by Close Date in Notion.');
 
     const root = document.getElementById('contractor-records');
     if (!records.length) {
