@@ -1545,6 +1545,96 @@
     .summary-grid,.intake-group { grid-template-columns:1fr; }
     .summary-grid .kpi-card { min-height:auto; }
     .compact-list-item { align-items:flex-start; flex-direction:column; }
+    .drill-row { min-height:44px; }
+    .intake-choice { min-height:56px; }
+  }
+
+  /* Contractor search bar */
+  .contractor-search {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding: 12px 14px;
+    margin: 0 -4px 6px;
+    background: rgba(245, 241, 234, 0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--card-border);
+    border-radius: 0;
+  }
+  .contractor-search-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .contractor-search-input {
+    flex: 1 1 auto;
+    height: 44px;
+    padding: 10px 40px 10px 40px;
+    font-size: 15px;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-radius: 10px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .contractor-search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(196, 101, 42, 0.18);
+  }
+  .contractor-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 15px;
+    pointer-events: none;
+  }
+  .contractor-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .contractor-search-clear:hover { color: var(--text-primary); }
+  .contractor-search.has-query .contractor-search-clear { display: inline-flex; }
+  .contractor-search-status {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    min-height: 16px;
+  }
+  .contractor-flow.is-searching .workflow-section.no-search-match .card {
+    opacity: 0.45;
+  }
+  .contractor-flow.is-searching .workflow-section.no-search-match .card::after {
+    content: "No matches in this section.";
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .mini-table tr.search-hidden { display: none; }
+  .empty-search-hint {
+    padding: 12px 0;
+    color: var(--text-muted);
+    font-size: 12.5px;
   }
 </style>
 </head>
@@ -1599,6 +1689,26 @@
 
   <section id="contractor-dashboard" hidden>
     <div class="contractor-flow">
+
+      <!-- SEARCH -->
+      <div class="contractor-search" id="contractor-search">
+        <div class="contractor-search-inner">
+          <span class="contractor-search-icon" aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            class="contractor-search-input"
+            id="contractor-search-input"
+            placeholder="Search prospects, partners, clients, deals"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Search across your book"
+          />
+          <button type="button" class="contractor-search-clear" id="contractor-search-clear" aria-label="Clear search">×</button>
+        </div>
+        <div class="contractor-search-status" id="contractor-search-status" role="status" aria-live="polite"></div>
+      </div>
 
       <!-- 1. OVERVIEW -->
       <section class="workflow-section">
@@ -4373,6 +4483,7 @@
       document.querySelectorAll('#contractor-dashboard .mini-table').forEach((table) => {
         labelTables(table.parentElement);
       });
+      setupContractorSearch();
       return;
     }
     root.innerHTML = `<table class="mini-table">
@@ -4409,6 +4520,98 @@
     document.querySelectorAll('#contractor-dashboard .mini-table').forEach((table) => {
       labelTables(table.parentElement);
     });
+    setupContractorSearch();
+  }
+
+  // Client-side search across every mini-table in the contractor view.
+  // Rebound on every render because tables are re-drawn.
+  function setupContractorSearch() {
+    const wrap = document.getElementById('contractor-search');
+    const input = document.getElementById('contractor-search-input');
+    const clearBtn = document.getElementById('contractor-search-clear');
+    const status = document.getElementById('contractor-search-status');
+    const flow = document.querySelector('#contractor-dashboard .contractor-flow');
+    if (!wrap || !input || !flow) return;
+
+    // Cache each row's searchable text once per render so keystrokes are cheap.
+    const rows = Array.from(document.querySelectorAll('#contractor-dashboard .mini-table tbody tr'));
+    rows.forEach((row) => {
+      row.dataset.searchText = (row.innerText || row.textContent || '').toLowerCase();
+    });
+
+    const sections = Array.from(document.querySelectorAll('#contractor-dashboard .workflow-section'));
+
+    const preservedValue = input.value;
+    // Remove any old listeners by cloning.
+    const freshInput = input.cloneNode(true);
+    input.replaceWith(freshInput);
+    const freshClear = clearBtn.cloneNode(true);
+    clearBtn.replaceWith(freshClear);
+    freshInput.value = preservedValue;
+
+    function apply(rawQuery) {
+      const q = (rawQuery || '').trim().toLowerCase();
+      const active = q.length > 0;
+      wrap.classList.toggle('has-query', active);
+      flow.classList.toggle('is-searching', active);
+
+      let totalMatches = 0;
+      sections.forEach((section) => {
+        const sectionRows = section.querySelectorAll('.mini-table tbody tr');
+        if (!sectionRows.length) {
+          section.classList.toggle('no-search-match', active);
+          return;
+        }
+        let sectionMatches = 0;
+        sectionRows.forEach((row) => {
+          const text = row.dataset.searchText || '';
+          const hit = !active || text.includes(q);
+          row.classList.toggle('search-hidden', !hit);
+          if (hit) sectionMatches += 1;
+        });
+        totalMatches += sectionMatches;
+
+        section.querySelectorAll('.mini-table').forEach((table) => {
+          const holder = table.parentElement;
+          let hint = holder.querySelector(':scope > .empty-search-hint');
+          if (active && sectionMatches === 0) {
+            if (!hint) {
+              hint = document.createElement('div');
+              hint.className = 'empty-search-hint';
+              hint.textContent = 'No matches in this list.';
+              holder.appendChild(hint);
+            }
+          } else if (hint) {
+            hint.remove();
+          }
+        });
+        section.classList.remove('no-search-match');
+      });
+
+      if (!active) {
+        status.textContent = '';
+      } else {
+        status.textContent = totalMatches === 1
+          ? '1 match across your book.'
+          : `${totalMatches.toLocaleString('en-US')} matches across your book.`;
+      }
+    }
+
+    freshInput.addEventListener('input', (event) => apply(event.target.value));
+    freshInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        freshInput.value = '';
+        apply('');
+        freshInput.blur();
+      }
+    });
+    freshClear.addEventListener('click', () => {
+      freshInput.value = '';
+      apply('');
+      freshInput.focus();
+    });
+
+    if (preservedValue) apply(preservedValue);
   }
 
   async function openContractorDraft(draftId, trigger) {
