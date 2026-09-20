@@ -1524,6 +1524,11 @@
   .state-chip { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; color:var(--text-secondary); font-size:10px; }
   .state-chip::before { width:6px; height:6px; border-radius:50%; background:var(--accent); content:""; }
   .state-chip.is-live::before { background:var(--success); }
+  .histogram { display:flex; flex-direction:column; gap:6px; }
+  .histogram svg { width:100%; height:150px; display:block; }
+  .histogram-ticks { display:grid; column-gap:2px; }
+  .histogram-tick { color:var(--text-dim); font-size:10px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .histogram-caption { color:var(--text-muted); font-size:10.5px; line-height:1.45; margin-top:4px; }
   .book-actions { display:flex; flex-wrap:wrap; gap:7px; }
   .deal-snapshot { display:grid; gap:10px; }
   .deal-stat { padding:14px; border:1px solid var(--card-border); border-radius:8px; background:#161514; }
@@ -1594,8 +1599,10 @@
 
   <section id="contractor-dashboard" hidden>
     <div class="contractor-flow">
+
+      <!-- 1. OVERVIEW -->
       <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Your book at a glance</div><h2 class="workflow-title">Book Summary</h2><div class="workflow-description">Only records assigned to your UnderHype account are included. Financials and other representatives' books stay private.</div></div></div>
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Your book at a glance</div><h2 class="workflow-title">Overview</h2><div class="workflow-description">Only records assigned to your UnderHype account are included. Financials and other representatives' books stay private.</div></div></div>
         <div class="summary-grid">
           <div class="kpi-card"><div class="kpi-label">Prospects</div><div class="kpi-value" id="contractor-assigned">0</div><div class="kpi-sub">In your prospecting database.</div></div>
           <div class="kpi-card"><div class="kpi-label">Current Clients</div><div class="kpi-value" id="contractor-clients">0</div><div class="kpi-sub">Active in your book.</div></div>
@@ -1604,42 +1611,68 @@
           <div class="kpi-card"><div class="kpi-label">Active Partners</div><div class="kpi-value" id="contractor-active-partners">0</div><div class="kpi-sub">Active referral and channel partners.</div></div>
         </div>
       </section>
+
+      <!-- 2. PROSPECTING DATABASE -->
       <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Grow the database</div><h2 class="workflow-title">Add Prospects and Partners</h2><div class="workflow-description">Capture contacts from the field or import a prepared list. Every record is checked before it enters your book.</div></div></div>
-        <div class="intake-columns">
-          <div class="card intake-card" style="margin:0"><div class="card-title">Add Prospects</div><div class="intake-group">
-            <button class="intake-choice" id="intake-card-button" type="button"><strong>Scan a business card</strong><span>Valid new contacts are added automatically.</span></button>
-            <button class="intake-choice" id="intake-manual-button" type="button"><strong>Add one contact</strong><span>Enter a person or business directly.</span></button>
-            <button class="intake-choice" id="intake-csv-button" type="button"><strong>Upload a CSV</strong><span>Preview and deduplicate up to 100 prospects.</span></button>
-          </div></div>
-          <div class="card"><div class="card-title">Add Prospective Partners</div><div class="intake-group" style="grid-template-columns:1fr">
-            <button class="intake-choice partner-choice" id="partner-card-button" type="button"><strong>Scan a partner business card</strong><span>Read a card and add the prospective partner to your relationship book.</span></button>
-            <button class="intake-choice partner-choice" id="partner-manual-button" type="button"><strong>Add one partner</strong><span>Create one referral or channel partner.</span></button>
-            <button class="intake-choice partner-choice" id="partner-csv-button" type="button"><strong>Upload a partner CSV</strong><span>Preview and deduplicate a partner list.</span></button>
-          </div></div>
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">State of your database</div><h2 class="workflow-title">Prospecting Database</h2><div class="workflow-description">Every prospect in your book, broken down by how far each has moved. Growth over time and the actions that add to the database live here.</div></div></div>
+        <div class="followup-columns">
+          <div class="card"><div class="card-title">Where Your Prospects Stand</div><div id="contractor-db-breakdown"></div></div>
+          <div class="card"><div class="card-title">Prospects Added Over Time</div><div id="contractor-prospect-histogram"></div></div>
         </div>
-      </section>
-      <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Build the channel</div><h2 class="workflow-title">Partner Recruitment</h2><div class="workflow-description">Develop prospective referral and channel partners through a dedicated relationship flow.</div></div></div>
-        <div class="followup-columns"><div class="card"><div class="card-title">Partner Recruitment Conversations</div><div id="contractor-partner-recruitment"></div></div><div class="card"><div class="card-title">Recruitment Flow</div><div id="contractor-partner-stages"></div></div></div>
-      </section>
-      <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Grow through relationships</div><h2 class="workflow-title">Partner Management</h2><div class="workflow-description">Keep active partner relationships visible and easy to contact.</div></div></div>
-        <div class="card"><div class="card-title">Active Partner Book</div><div id="contractor-active-partner-book"></div></div>
-      </section>
-      <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Work the relationships</div><h2 class="workflow-title">Prospect Follow-Up</h2><div class="workflow-description">Conversations are ordered by time since the last logged contact, without assigning priorities or due dates.</div></div></div>
-        <div class="card"><div class="card-title">Open Prospect Conversations</div><div id="contractor-follow-up"></div></div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Add Prospects</div><div class="intake-group">
+          <button class="intake-choice" id="intake-card-button" type="button"><strong>Scan a business card</strong><span>Valid new contacts are added automatically.</span></button>
+          <button class="intake-choice" id="intake-manual-button" type="button"><strong>Add one contact</strong><span>Enter a person or business directly.</span></button>
+          <button class="intake-choice" id="intake-csv-button" type="button"><strong>Upload a CSV</strong><span>Preview and deduplicate up to 100 prospects.</span></button>
+        </div></div>
         <div class="card" style="margin-top:14px"><div class="card-title">Your Prospect Database</div><div id="contractor-records"></div></div>
       </section>
+
+      <!-- 3. GENERATING PIPELINE -->
       <section class="workflow-section">
-        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Deals with demonstrated interest</div><h2 class="workflow-title">Qualified Pipeline and Active Deals</h2><div class="workflow-description">Only opportunities beyond initial outreach appear here.</div></div></div>
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Turn prospects into opportunities</div><h2 class="workflow-title">Generating Pipeline</h2><div class="workflow-description">How the working queue is moving. Conversations ordered by time since last logged contact, and where every open opportunity currently sits.</div></div></div>
+        <div class="followup-columns">
+          <div class="card"><div class="card-title">Current Pipeline by Stage</div><div id="contractor-pipeline-stages"></div></div>
+          <div class="card"><div class="card-title">Pipeline Built Over Time</div><div id="contractor-pipeline-histogram"></div></div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Open Prospect Conversations</div><div id="contractor-follow-up"></div></div>
+      </section>
+
+      <!-- 4. PARTNER RECRUITMENT DATABASE -->
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">State of your partner book</div><h2 class="workflow-title">Partner Recruitment Database</h2><div class="workflow-description">Every prospective referral and channel partner in your book, broken down by state. Growth over time and partner intake actions live here.</div></div></div>
+        <div class="followup-columns">
+          <div class="card"><div class="card-title">Where Your Partners Stand</div><div id="contractor-partner-db-breakdown"></div></div>
+          <div class="card"><div class="card-title">Partners Added Over Time</div><div id="contractor-partner-histogram"></div></div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Add Prospective Partners</div><div class="intake-group" style="grid-template-columns:1fr">
+          <button class="intake-choice partner-choice" id="partner-card-button" type="button"><strong>Scan a partner business card</strong><span>Read a card and add the prospective partner to your relationship book.</span></button>
+          <button class="intake-choice partner-choice" id="partner-manual-button" type="button"><strong>Add one partner</strong><span>Create one referral or channel partner.</span></button>
+          <button class="intake-choice partner-choice" id="partner-csv-button" type="button"><strong>Upload a partner CSV</strong><span>Preview and deduplicate a partner list.</span></button>
+        </div></div>
+      </section>
+
+      <!-- 5. BUILDING PARTNER PIPELINE -->
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Convert partners toward agreement</div><h2 class="workflow-title">Building Partner Pipeline</h2><div class="workflow-description">How your partner conversations are progressing through the recruitment flow.</div></div></div>
+        <div class="followup-columns">
+          <div class="card"><div class="card-title">Recruitment Flow</div><div id="contractor-partner-stages"></div></div>
+          <div class="card"><div class="card-title">Partner Recruitment Conversations</div><div id="contractor-partner-recruitment"></div></div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="card-title">Active Partner Book</div><div id="contractor-active-partner-book"></div></div>
+      </section>
+
+      <!-- 6. ACTIVE OPPORTUNITIES -->
+      <section class="workflow-section">
+        <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Deals with demonstrated interest</div><h2 class="workflow-title">Active Opportunities</h2><div class="workflow-description">Only opportunities beyond initial outreach appear here.</div></div></div>
         <div class="card"><div class="card-title">Active Deals</div><div id="contractor-deals"></div></div>
       </section>
+
+      <!-- 7. ACTIVE CLIENTS -->
       <section class="workflow-section">
         <div class="workflow-heading"><div class="workflow-heading-copy"><div class="workflow-kicker">Current book of business</div><h2 class="workflow-title">Active Clients</h2><div class="workflow-description">The clients currently assigned to your book.</div></div></div>
         <div class="card"><div id="contractor-client-book"></div></div>
       </section>
+
     </div>
   </section>
 
@@ -4123,6 +4156,76 @@
     return html + '</div>';
   }
 
+  /* ─── Contractor dashboard rendering helpers ────────────────
+     breakdownList: a compact list of state chips, sharing the
+     .compact-list styling already used in the recruitment flow.
+     monthlyHistogram: an inline SVG bar chart of counts bucketed
+     into the last N calendar months. All data-driven, no libs. */
+
+  function breakdownList(rows) {
+    if (!rows || !rows.length) {
+      return '<div class="empty-state">Nothing to break down yet.</div>';
+    }
+    return '<div class="compact-list">' + rows.map((row) => `<div class="compact-list-item">
+      <div><div class="compact-list-name">${esc(row.label)}</div><div class="compact-list-meta">${esc(row.meta || '')}</div></div>
+      <span class="state-chip${row.live ? ' is-live' : ''}">${fmt(row.count || 0)}</span>
+    </div>`).join('') + '</div>';
+  }
+
+  function monthlyHistogram(dateStrings, monthsBack, caption) {
+    const buckets = new Array(monthsBack).fill(0);
+    const now = new Date();
+    const startYear = now.getUTCFullYear();
+    const startMonth = now.getUTCMonth(); // 0-based
+    const labels = [];
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const d = new Date(Date.UTC(startYear, startMonth - i, 1));
+      labels.push(d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }));
+    }
+    let anyValid = false;
+    (dateStrings || []).forEach((raw) => {
+      if (!raw) return;
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return;
+      anyValid = true;
+      const monthsAgo = (startYear - dt.getUTCFullYear()) * 12 + (startMonth - dt.getUTCMonth());
+      if (monthsAgo >= 0 && monthsAgo < monthsBack) {
+        buckets[monthsBack - 1 - monthsAgo] += 1;
+      }
+    });
+    if (!anyValid) {
+      return `<div class="empty-state">No dated records yet.</div>
+        <div class="histogram-caption">${esc(caption || '')}</div>`;
+    }
+    const max = Math.max(1, ...buckets);
+    const barW = 100 / monthsBack;
+    const bars = buckets.map((count, i) => {
+      const h = (count / max) * 100;
+      const x = i * barW;
+      const y = 100 - h;
+      return `<g>
+        <rect x="${x + barW * 0.15}" y="${y}" width="${barW * 0.7}" height="${h}"
+          rx="1.2" fill="var(--accent)" opacity="${count === 0 ? 0.15 : 0.85}">
+          <title>${esc(labels[i])}: ${count}</title>
+        </rect>
+      </g>`;
+    }).join('');
+    // Show every other month label to prevent overlap on small widths.
+    const tickLabels = labels.map((label, i) => {
+      const show = i === 0 || i === labels.length - 1 || i % 2 === 1;
+      return `<div class="histogram-tick" title="${esc(label)}">${show ? esc(label) : ''}</div>`;
+    }).join('');
+    const total = buckets.reduce((a, b) => a + b, 0);
+    return `<div class="histogram">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img"
+        aria-label="Monthly histogram, last ${monthsBack} months, total ${total}">
+        ${bars}
+      </svg>
+      <div class="histogram-ticks" style="grid-template-columns:repeat(${monthsBack},1fr);">${tickLabels}</div>
+      <div class="histogram-caption">${esc(caption || '')} Total in window: ${fmt(total)}.</div>
+    </div>`;
+  }
+
   function renderContractorDashboard() {
     if (isAdmin) return;
     const safeKpis = pipeline.kpis || {};
@@ -4131,6 +4234,7 @@
       !['Agreement Active', 'Dormant', 'Declined'].includes(partner.stage)
     );
     const activePartners = partners.filter((partner) => partner.stage === 'Agreement Active');
+    const dormantPartners = partners.filter((partner) => ['Dormant', 'Declined'].includes(partner.stage));
     const activeClients = records.filter((record) => record.is_active);
     const activeDeals = records.filter((record) => record.is_forecastable && !record.is_active);
     const prospects = records.filter((record) => !record.is_active);
@@ -4170,6 +4274,81 @@
         <td>${esc(quietLabel(record.days_quiet))}</td>
         ${includeActions ? `<td>${actionBar(record, record.name, true)}</td>` : ''}
       </tr>`).join('')}</tbody></table>` : empty('No records in this section yet.');
+
+    // ─── Prospecting Database: state breakdown ───
+    // Derived buckets, no Notion schema change:
+    //   Contacted     = days_quiet !== null (at least one Activity Log entry)
+    //   Uncontacted   = days_quiet === null
+    //   Opportunities = is_forecastable AND not is_active (past outreach, not yet won)
+    //   Closed Won    = is_active (Pilot, Active-Building, Active-Support)
+    //   Not Right Now = stage === 'Nurture' (revisit later)
+    //   Not Ever      = stage === 'Paused' OR (stage === 'Closed' AND not is_active)
+    const contacted     = records.filter(r => r.days_quiet !== null && r.days_quiet !== undefined);
+    const uncontacted   = records.filter(r => r.days_quiet === null || r.days_quiet === undefined);
+    const opportunities = records.filter(r => r.is_forecastable && !r.is_active);
+    const closedWon     = activeClients;
+    const notRightNow   = records.filter(r => r.stage === 'Nurture');
+    const notEver       = records.filter(r =>
+      r.stage === 'Paused' || (r.stage === 'Closed' && !r.is_active));
+    document.getElementById('contractor-db-breakdown').innerHTML = breakdownList([
+      { label: 'Total prospects',   count: records.length,        meta: 'Everything in your book.' },
+      { label: 'Contacted',         count: contacted.length,      meta: 'At least one logged interaction.' },
+      { label: 'Uncontacted',       count: uncontacted.length,    meta: 'No logged interaction yet.' },
+      { label: 'Opportunities',     count: opportunities.length,  meta: 'Past outreach, not yet closed.', live: true },
+      { label: 'Closed won',        count: closedWon.length,      meta: 'Pilot or active clients.', live: true },
+      { label: 'Not right now',     count: notRightNow.length,    meta: 'Nurture stage. Revisit later.' },
+      { label: 'Not ever',          count: notEver.length,        meta: 'Paused or closed lost.' },
+    ]);
+
+    // ─── Prospecting Database: monthly histogram ───
+    document.getElementById('contractor-prospect-histogram').innerHTML =
+      monthlyHistogram(records.map(r => r.created), 12, 'Prospects added per month, last 12 months.');
+
+    // ─── Generating Pipeline: current stage breakdown ───
+    const pipelineStageOrder = [
+      'Interested',
+      'Consultation Scheduled',
+      'Proposal Sent',
+      'Nurture',
+      'Pilot',
+      'Active - Building',
+      'Active - Support',
+    ];
+    document.getElementById('contractor-pipeline-stages').innerHTML = breakdownList(
+      pipelineStageOrder.map(stage => ({
+        label: stage,
+        count: records.filter(r => r.stage === stage).length,
+        meta: 'Pipeline stage',
+        live: stage === 'Consultation Scheduled' || stage === 'Proposal Sent',
+      }))
+    );
+
+    // ─── Generating Pipeline: monthly histogram ───
+    // Approximation: count records currently in a forecastable stage, bucketed
+    // by when they were first created. This shows the vintage of open pipeline,
+    // not the moment they crossed the Interested threshold.
+    const forecastableCreated = records
+      .filter(r => r.is_forecastable)
+      .map(r => r.created);
+    document.getElementById('contractor-pipeline-histogram').innerHTML =
+      monthlyHistogram(forecastableCreated, 12,
+        'Forecastable prospects by month first added. Not the exact moment they entered pipeline.');
+
+    // ─── Partner recruitment database breakdown ───
+    const partnerContacted   = partners.filter(p => p.days_quiet !== null && p.days_quiet !== undefined);
+    const partnerUncontacted = partners.filter(p => p.days_quiet === null || p.days_quiet === undefined);
+    document.getElementById('contractor-partner-db-breakdown').innerHTML = breakdownList([
+      { label: 'Total partners',       count: partners.length,             meta: 'Everything in your partner book.' },
+      { label: 'Contacted',            count: partnerContacted.length,     meta: 'At least one logged interaction.' },
+      { label: 'Uncontacted',          count: partnerUncontacted.length,   meta: 'No logged interaction yet.' },
+      { label: 'In recruitment',       count: recruitingPartners.length,   meta: 'Prospective, still developing.', live: true },
+      { label: 'Active partners',      count: activePartners.length,       meta: 'Agreement in place.', live: true },
+      { label: 'Dormant or declined',  count: dormantPartners.length,      meta: 'Not currently active.' },
+    ]);
+
+    // ─── Partners monthly histogram ───
+    document.getElementById('contractor-partner-histogram').innerHTML =
+      monthlyHistogram(partners.map(p => p.created), 12, 'Partners added per month, last 12 months.');
 
     document.getElementById('contractor-partner-recruitment').innerHTML =
       partnerTable(recruitingPartners);
