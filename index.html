@@ -1893,6 +1893,7 @@
       </div>
     </div>
     <div class="owner-filter" id="admin-console-owner-filter" role="tablist" aria-label="Owner filter"></div>
+    <div class="empty-search-hint" style="padding:8px 0 0;">Pipeline = rows that have expressed interest. Cold Leads and Outreach stages are not counted here.</div>
     <div class="summary-grid" style="margin-top:14px">
       <div class="kpi-card">
         <div class="kpi-label">Pipeline Recurring / Month</div>
@@ -1926,7 +1927,7 @@
       </div>
     </div>
     <div class="card" style="margin-top:14px">
-      <div class="card-title">Prospects and Clients</div>
+      <div class="card-title">Pipeline</div>
       <div id="console-records"></div>
     </div>
   </section>
@@ -4992,9 +4993,12 @@
     let currentOwner = 'all';
 
     function chipsHtml() {
-      const totalCount = consoleRecords.length;
+      /* Counts on chips reflect the pipeline definition too, so "All 3"
+         and each owner chip match what you actually see below. */
+      const pipelineOnly = pipelineRows(consoleRecords);
+      const totalCount = pipelineOnly.length;
       const perOwnerCount = new Map();
-      consoleRecords.forEach((r) => {
+      pipelineOnly.forEach((r) => {
         const key = String(r.owner_email || '').toLowerCase() || '__unassigned__';
         perOwnerCount.set(key, (perOwnerCount.get(key) || 0) + 1);
       });
@@ -5012,14 +5016,24 @@
       return chips.join('');
     }
 
+    /* Pipeline = anything with expressed interest OR already earning revenue.
+       is_forecastable is the worker's definition of "in the funnel"; Paid
+       rows are past the funnel but still belong on the owner's book. Rows at
+       stage Lead or Outreach are excluded so the Console reflects real
+       opportunities, not cold prospects. */
+    function pipelineRows(rows) {
+      return rows.filter((r) => r.is_forecastable || r.billing_status === 'Paid');
+    }
+
     function filterRecords() {
-      if (currentOwner === 'all') return consoleRecords;
-      if (currentOwner === '__unassigned__') {
-        return consoleRecords.filter((r) => !r.owner_email);
-      }
-      return consoleRecords.filter((r) =>
-        String(r.owner_email || '').toLowerCase() === currentOwner
-      );
+      const scoped = currentOwner === 'all'
+        ? consoleRecords
+        : currentOwner === '__unassigned__'
+          ? consoleRecords.filter((r) => !r.owner_email)
+          : consoleRecords.filter((r) =>
+              String(r.owner_email || '').toLowerCase() === currentOwner
+            );
+      return pipelineRows(scoped);
     }
 
     function ownerLabelFor(email) {
@@ -5157,11 +5171,13 @@
 
     function paintTiles() {
       const rows = filterRecords();
-      const forecastable = rows.filter((r) => r.is_forecastable);
+      /* Pipeline tiles = forecastable, unpaid rows only, so Won money never
+         double-counts into the pipeline column. */
+      const openPipeline = rows.filter((r) => r.is_forecastable && r.billing_status !== 'Paid');
       const paying = rows.filter((r) => r.billing_status === 'Paid' && r.is_active);
       const won = rows.filter((r) => r.billing_status === 'Paid');
-      document.getElementById('console-pipeline-recurring').textContent = fmtCurrency(sumField(forecastable, 'est_monthly'));
-      document.getElementById('console-pipeline-onetime').textContent = fmtCurrency(sumField(forecastable, 'project_revenue'));
+      document.getElementById('console-pipeline-recurring').textContent = fmtCurrency(sumField(openPipeline, 'est_monthly'));
+      document.getElementById('console-pipeline-onetime').textContent = fmtCurrency(sumField(openPipeline, 'project_revenue'));
       document.getElementById('console-won-recurring').textContent = fmtCurrency(sumField(paying, 'mrr'));
       document.getElementById('console-won-onetime').textContent = fmtCurrency(sumField(won, 'project_revenue'));
     }
@@ -5172,7 +5188,7 @@
       document.getElementById('console-won-histogram').innerHTML =
         stackedMonthlyHistogram(wonRows, 'close_date', 12, 'Deals won per month, last 12 months.');
       document.getElementById('console-pipeline-histogram').innerHTML =
-        stackedMonthlyHistogram(rows, 'created', 12, 'Records added per month, last 12 months.');
+        stackedMonthlyHistogram(rows, 'created', 12, 'Opportunities added per month, last 12 months.');
     }
 
     function paintRecords() {
@@ -5186,7 +5202,7 @@
          dashboard below already handle exhaustive browsing. */
       const shown = rows.slice(0, 60);
       const suffix = rows.length > shown.length
-        ? `<div class="empty-search-hint">Showing 60 of ${rows.length} records. Use the sections below for the full view.</div>`
+        ? `<div class="empty-search-hint">Showing 60 of ${rows.length} pipeline rows. Use the sections below for the full view including cold leads.</div>`
         : '';
       root.innerHTML = shown.map(consoleRecordCard).join('') + suffix;
     }
