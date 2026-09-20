@@ -1994,6 +1994,36 @@
       <div class="empty-search-hint" style="padding:0 0 8px;">Tap a stage to open the deals in it.</div>
       <div id="console-funnel"></div>
     </div>
+
+    <div class="workflow-heading" style="margin-top:24px">
+      <div class="workflow-heading-copy">
+        <div class="workflow-kicker">Partnerships</div>
+        <h2 class="workflow-title">Referral Partners</h2>
+        <div class="workflow-description">Go To Market partners for the filtered book. Business Partners like Nate are shown by the owner chips above; the partners in this section are referral relationships owned by whoever is selected.</div>
+      </div>
+    </div>
+    <div class="summary-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Active Agreements</div>
+        <div class="kpi-value" id="console-partners-active">0</div>
+        <div class="kpi-sub">Partners with an Agreement Active stage.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">In Conversation</div>
+        <div class="kpi-value" id="console-partners-conv">0</div>
+        <div class="kpi-sub">In Conversation or Terms Discussed.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Clients Generated</div>
+        <div class="kpi-value" id="console-partners-clients">0</div>
+        <div class="kpi-sub">Total clients these partners have sourced.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">Partnerships by Stage</div>
+      <div class="empty-search-hint" style="padding:0 0 8px;">Tap a stage to open the partners in it.</div>
+      <div id="console-partner-funnel"></div>
+    </div>
   </section>
 
   <!-- STANDARD ADMIN DASHBOARD (default view). Everything from the pre-existing
@@ -5369,6 +5399,150 @@
       });
     }
 
+    /* Partnerships side of the Console. Uses the same owner filter as the
+       pipeline; contractor accounts never reach this render because
+       renderAdminConsole early-returns for non-admin. */
+    const PARTNER_STAGE_FUNNEL = [
+      { key: 'Identified', label: 'Identified' },
+      { key: 'Contacted', label: 'Contacted' },
+      { key: 'In Conversation', label: 'In Conversation' },
+      { key: 'Terms Discussed', label: 'Terms Discussed' },
+      { key: 'Agreement Active', label: 'Agreement Active', terminal: true },
+      { key: 'Dormant', label: 'Dormant', terminal: true },
+    ];
+
+    function filterPartners() {
+      const scoped = currentOwner === 'all'
+        ? partnerRecords
+        : currentOwner === '__unassigned__'
+          ? partnerRecords.filter((p) => !p.owner_email)
+          : partnerRecords.filter((p) =>
+              String(p.owner_email || '').toLowerCase() === currentOwner
+            );
+      /* Declined is a dead end for the partner funnel; hide it entirely. */
+      return scoped.filter((p) => p.stage !== 'Declined');
+    }
+
+    function paintPartnerTiles() {
+      const partners = filterPartners();
+      const active = partners.filter((p) => p.stage === 'Agreement Active').length;
+      const conv = partners.filter((p) => ['In Conversation', 'Terms Discussed'].includes(p.stage)).length;
+      const clients = partners.reduce((acc, p) => acc + (Number(p.clients_generated) || 0), 0);
+      document.getElementById('console-partners-active').textContent = fmt(active);
+      document.getElementById('console-partners-conv').textContent = fmt(conv);
+      document.getElementById('console-partners-clients').textContent = fmt(clients);
+    }
+
+    function paintPartnerFunnel() {
+      const partners = filterPartners();
+      const root = document.getElementById('console-partner-funnel');
+      if (!partners.length) {
+        root.innerHTML = '<div class="empty-state">No partner relationships for this owner filter.</div>';
+        return;
+      }
+      const bucketed = PARTNER_STAGE_FUNNEL.map((stage) => ({ stage, rows: [] }));
+      partners.forEach((p) => {
+        const stageName = p.stage || 'Identified';
+        const idx = PARTNER_STAGE_FUNNEL.findIndex((s) => s.key === stageName);
+        if (idx >= 0) bucketed[idx].rows.push(p);
+      });
+      const maxCount = Math.max(1, ...bucketed.map((b) => b.rows.length));
+      const visibleOwners = currentOwner === 'all'
+        ? ownerOptions.map((o) => o.key)
+        : [currentOwner];
+
+      root.innerHTML = bucketed.map((b, idx) => {
+        const count = b.rows.length;
+        const generated = b.rows.reduce((acc, p) => acc + (Number(p.clients_generated) || 0), 0);
+        const perOwner = new Map();
+        b.rows.forEach((p) => {
+          const key = String(p.owner_email || '').toLowerCase() || '__unassigned__';
+          perOwner.set(key, (perOwner.get(key) || 0) + 1);
+        });
+        const segments = visibleOwners
+          .map((k) => ({ key: k, count: perOwner.get(k) || 0 }))
+          .filter((seg) => seg.count > 0);
+        const barPct = (count / maxCount) * 100;
+        const bar = segments.map((seg) => {
+          const segPct = (seg.count / count) * 100;
+          return `<div class="funnel-bar-seg" style="width:${segPct}%;background:${ownerColor.get(seg.key) || 'var(--accent)'}" title="${esc(ownerLabelFor(seg.key))}: ${seg.count}"></div>`;
+        }).join('');
+        const sub = generated
+          ? `${fmt(generated)} ${generated === 1 ? 'client' : 'clients'} sourced`
+          : (count ? 'No clients sourced from this stage yet' : 'No partners here');
+        const disabled = count === 0 ? 'disabled' : '';
+        return `<button type="button" class="funnel-row" data-partner-stage-index="${idx}" ${disabled}>
+          <div>
+            <div class="funnel-stage-name">${esc(b.stage.label)}</div>
+            <div class="funnel-stage-sub">${esc(sub)}</div>
+          </div>
+          <div class="funnel-bar-wrap" aria-hidden="true" style="max-width:${Math.max(barPct, 4)}%">${bar}</div>
+          <div class="funnel-count"><strong>${fmt(count)}</strong> ${count === 1 ? 'partner' : 'partners'}</div>
+        </button>`;
+      }).join('');
+
+      root.querySelectorAll('.funnel-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const idx = Number(row.getAttribute('data-partner-stage-index'));
+          const bucket = bucketed[idx];
+          if (!bucket || !bucket.rows.length) return;
+          const ownerLabel = currentOwner === 'all'
+            ? 'All owners'
+            : ownerLabelFor(currentOwner);
+          /* Sort partners inside a stage: most clients sourced first, then
+             most recent contact so warm partners bubble up over cold ones. */
+          const sorted = bucket.rows.slice().sort((a, b) => {
+            const ag = Number(a.clients_generated) || 0;
+            const bg = Number(b.clients_generated) || 0;
+            if (bg !== ag) return bg - ag;
+            const aq = a.days_quiet == null ? Infinity : a.days_quiet;
+            const bq = b.days_quiet == null ? Infinity : b.days_quiet;
+            return aq - bq;
+          });
+          const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'partner' : 'partners'}`;
+          openDrill(bucket.stage.label, subtitle,
+            renderList(sorted, consolePartnerCard, 'No partners in this stage.'));
+        });
+      });
+    }
+
+    function consolePartnerCard(p) {
+      const quietTxt = (p.days_quiet === null || p.days_quiet === undefined)
+        ? 'No contact ever logged'
+        : (p.days_quiet === 0 ? 'Last contact today' : `Quiet ${p.days_quiet} days`);
+      const ownerLabel = ownerLabelFor(p.owner_email);
+      const pillClass = p.owner_email ? 'owner-pill' : 'owner-pill owner-pill-unassigned';
+      let f = '';
+      f += `<div><div class="rec-f-label">Owner</div><div class="rec-f-value"><span class="${pillClass}">${esc(ownerLabel)}</span></div></div>`;
+      f += field('Partner', p.partner);
+      f += field('Type', p.type);
+      f += field('Stage', p.stage);
+      f += field('Fit', p.fit);
+      f += field('Location', p.location);
+      f += contactField('Phone', p.phone, 'tel');
+      f += contactField('Email', p.email, 'mailto');
+      if (p.clients_generated) f += field('Clients Generated', fmt(p.clients_generated));
+      if (p.referrals_received) f += field('Referrals Received', fmt(p.referrals_received));
+      if (p.referrals_sent) f += field('Referrals Sent', fmt(p.referrals_sent));
+      f += field('Last Contact', p.last_contact);
+      const displayName = p.organization || p.partner || 'Unnamed partner';
+      let html = `<div class="rec">
+        <div class="rec-head">
+          <div class="rec-name">${esc(displayName)}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${esc(quietTxt)}</div>
+        </div>
+        <div class="rec-fields">${f}</div>`;
+      if (p.next_step) {
+        html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(p.next_step)}</div>`;
+      }
+      /* Partner action bar. recordKind is 'partner' so compose uses the
+         partner email template, not the prospect one. */
+      html += actionBar(p, displayName, true, 'partner');
+      if (p.id) html += activityLogger(p);
+      html += '</div>';
+      return html;
+    }
+
     function paintAll() {
       filterRoot.innerHTML = chipsHtml();
       filterRoot.querySelectorAll('.owner-chip').forEach((chip) => {
@@ -5382,6 +5556,8 @@
       paintTiles();
       paintHistograms();
       paintRecords();
+      paintPartnerTiles();
+      paintPartnerFunnel();
     }
 
     paintAll();
