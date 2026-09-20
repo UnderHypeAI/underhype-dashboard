@@ -1701,6 +1701,69 @@
     margin-bottom: 22px;
     flex-wrap: wrap;
   }
+  /* Horizontal funnel: each stage is a clickable row with a proportional bar.
+     Reads at a glance and doubles as the drill-in target. */
+  .funnel-row {
+    display: grid;
+    grid-template-columns: 150px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    margin-bottom: 8px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    color: inherit;
+    font: inherit;
+  }
+  .funnel-row:hover { border-color: var(--text-secondary); }
+  .funnel-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .funnel-row[disabled] { cursor: default; opacity: 0.55; }
+  .funnel-row[disabled]:hover { border-color: var(--border); }
+  .funnel-stage-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .funnel-stage-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .funnel-bar-wrap {
+    display: flex;
+    height: 22px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface-alt, rgba(0,0,0,0.05));
+    position: relative;
+  }
+  .funnel-bar-seg {
+    height: 100%;
+    min-width: 2px;
+  }
+  .funnel-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .funnel-count strong {
+    color: var(--text-primary);
+    font-size: 15px;
+  }
+  @media (max-width: 640px) {
+    .funnel-row {
+      grid-template-columns: 120px 1fr auto;
+      gap: 8px;
+      padding: 8px 10px;
+    }
+    .funnel-stage-name { font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -1927,8 +1990,9 @@
       </div>
     </div>
     <div class="card" style="margin-top:14px">
-      <div class="card-title">Pipeline</div>
-      <div id="console-records"></div>
+      <div class="card-title">Pipeline by Stage</div>
+      <div class="empty-search-hint" style="padding:0 0 8px;">Tap a stage to open the deals in it.</div>
+      <div id="console-funnel"></div>
     </div>
   </section>
 
@@ -5197,20 +5261,112 @@
         stackedMonthlyHistogram(rows, 'created', 12, 'Opportunities added per month, last 12 months.');
     }
 
+    /* Funnel stages in order. Won is a terminal bucket so it appears last;
+         Nurture sits after Proposal Sent because it is the "keep warm" bucket
+         for opportunities that stalled after real interest. */
+    const FUNNEL_STAGES = [
+      { key: 'Interested', label: 'Interested', match: (r) => r.stage === 'Interested' },
+      { key: 'Consultation Scheduled', label: 'Consultation Scheduled', match: (r) => r.stage === 'Consultation Scheduled' },
+      { key: 'Proposal Sent', label: 'Proposal Sent', match: (r) => r.stage === 'Proposal Sent' },
+      { key: 'Pilot', label: 'Pilot', match: (r) => r.stage === 'Pilot' },
+      { key: 'Nurture', label: 'Nurture', match: (r) => r.stage === 'Nurture' },
+      { key: 'Active - Building', label: 'Active - Building', match: (r) => r.stage === 'Active - Building' },
+      { key: 'Active - Support', label: 'Active - Support', match: (r) => r.stage === 'Active - Support' },
+      { key: 'Won', label: 'Won', match: (r) => r.billing_status === 'Paid', terminal: true },
+    ];
+
     function paintRecords() {
       const rows = filterRecords();
-      const root = document.getElementById('console-records');
+      const root = document.getElementById('console-funnel');
       if (!rows.length) {
-        root.innerHTML = '<div class="empty-state">No records match the current owner filter.</div>';
+        root.innerHTML = '<div class="empty-state">No opportunities in the pipeline for this owner filter.</div>';
         return;
       }
-      /* Cap the list so the page stays fast; drill-downs in the fat admin
-         dashboard below already handle exhaustive browsing. */
-      const shown = rows.slice(0, 60);
-      const suffix = rows.length > shown.length
-        ? `<div class="empty-search-hint">Showing 60 of ${rows.length} pipeline rows. Use the sections below for the full view including cold leads.</div>`
-        : '';
-      root.innerHTML = shown.map(consoleRecordCard).join('') + suffix;
+
+      /* Bucket every row into the first stage it matches. Paid rows are
+         claimed by Won first so an Active - Support client that is Paid
+         still lands in Won rather than being counted twice. */
+      const bucketed = FUNNEL_STAGES.map((stage) => ({ stage, rows: [] }));
+      rows.forEach((r) => {
+        for (let i = 0; i < FUNNEL_STAGES.length; i++) {
+          if (FUNNEL_STAGES[i].match(r)) {
+            bucketed[i].rows.push(r);
+            return;
+          }
+        }
+      });
+
+      const maxCount = Math.max(1, ...bucketed.map((b) => b.rows.length));
+      const visibleOwners = currentOwner === 'all'
+        ? ownerOptions.map((o) => o.key)
+        : [currentOwner];
+
+      root.innerHTML = bucketed.map((b, idx) => {
+        const count = b.rows.length;
+        const recurring = sumField(b.rows, 'est_monthly');
+        const oneTime = sumField(b.rows, 'project_revenue');
+        const mrr = sumField(b.rows, 'mrr');
+        /* For each stage, split the bar into per-owner segments so aggregate
+           view stays informative even without opening the drill. */
+        const perOwner = new Map();
+        b.rows.forEach((r) => {
+          const key = String(r.owner_email || '').toLowerCase() || '__unassigned__';
+          perOwner.set(key, (perOwner.get(key) || 0) + 1);
+        });
+        const segments = visibleOwners
+          .map((k) => ({ key: k, count: perOwner.get(k) || 0 }))
+          .filter((seg) => seg.count > 0);
+        const barPct = (count / maxCount) * 100;
+        const bar = segments.map((seg) => {
+          const segPct = (seg.count / count) * 100;
+          return `<div class="funnel-bar-seg" style="width:${segPct}%;background:${ownerColor.get(seg.key) || 'var(--accent)'}" title="${esc(ownerLabelFor(seg.key))}: ${seg.count}"></div>`;
+        }).join('');
+
+        /* Sub-line: preserved for context, kept short so mobile still fits. */
+        const sub = b.stage.key === 'Won'
+          ? (mrr ? `$${fmtCurrency(mrr)}/mo MRR + $${fmtCurrency(oneTime)} one time` : `$${fmtCurrency(oneTime)} one time`)
+          : (recurring || oneTime
+              ? `$${fmtCurrency(recurring)}/mo + $${fmtCurrency(oneTime)} one time`
+              : 'No value entered on these rows yet');
+
+        const disabled = count === 0 ? 'disabled' : '';
+        return `<button type="button" class="funnel-row" data-stage-index="${idx}" ${disabled}>
+          <div>
+            <div class="funnel-stage-name">${esc(b.stage.label)}</div>
+            <div class="funnel-stage-sub">${esc(sub)}</div>
+          </div>
+          <div class="funnel-bar-wrap" aria-hidden="true" style="max-width:${Math.max(barPct, 4)}%">${bar}</div>
+          <div class="funnel-count"><strong>${fmt(count)}</strong> ${count === 1 ? 'deal' : 'deals'}</div>
+        </button>`;
+      }).join('');
+
+      root.querySelectorAll('.funnel-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const idx = Number(row.getAttribute('data-stage-index'));
+          const bucket = bucketed[idx];
+          if (!bucket || !bucket.rows.length) return;
+          const ownerLabel = currentOwner === 'all'
+            ? 'All owners'
+            : ownerLabelFor(currentOwner);
+          /* Sort deals within a stage: highest recurring first, then highest
+             one-time, then quietest first (largest days_quiet) so stalled
+             deals bubble up. */
+          const sorted = bucket.rows.slice().sort((a, b) => {
+            const ar = (Number(a.est_monthly) || 0) + (Number(a.mrr) || 0);
+            const br = (Number(b.est_monthly) || 0) + (Number(b.mrr) || 0);
+            if (br !== ar) return br - ar;
+            const ao = Number(a.project_revenue) || 0;
+            const bo = Number(b.project_revenue) || 0;
+            if (bo !== ao) return bo - ao;
+            const aq = a.days_quiet == null ? -1 : a.days_quiet;
+            const bq = b.days_quiet == null ? -1 : b.days_quiet;
+            return bq - aq;
+          });
+          const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'deal' : 'deals'}`;
+          openDrill(bucket.stage.label, subtitle,
+            renderList(sorted, consoleRecordCard, 'No deals in this stage.'));
+        });
+      });
     }
 
     function paintAll() {
