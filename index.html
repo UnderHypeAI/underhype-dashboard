@@ -1636,6 +1636,71 @@
     color: var(--text-muted);
     font-size: 12.5px;
   }
+  /* Owner filter used on the admin Console. */
+  .owner-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .owner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 13px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    border-radius: 999px;
+    font-size: 12.5px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .owner-chip .owner-chip-count {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+  .owner-chip:hover { border-color: var(--text-secondary); }
+  .owner-chip.is-active {
+    background: var(--text-primary);
+    color: var(--surface);
+    border-color: var(--text-primary);
+  }
+  .owner-chip.is-active .owner-chip-count { color: var(--surface); opacity: 0.7; }
+  .owner-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--surface-alt, rgba(0,0,0,0.05));
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .owner-pill.owner-pill-unassigned { color: var(--text-muted); }
+  /* Deals Won histogram stacked bars, colored by owner. */
+  .histogram-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+  .histogram-legend .legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .admin-view-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
 </style>
 </head>
 <body>
@@ -1812,6 +1877,64 @@
   </section>
 
   <div id="admin-dashboard">
+  <!-- ADMIN VIEW TOGGLE (Standard is default, Console is opt-in). -->
+  <div class="admin-view-toggle" role="tablist" aria-label="Admin view">
+    <button type="button" class="owner-chip is-active" id="admin-view-standard" role="tab" aria-selected="true">Standard Dashboard</button>
+    <button type="button" class="owner-chip" id="admin-view-console" role="tab" aria-selected="false">Console</button>
+  </div>
+
+  <!-- ADMIN CONSOLE (book by owner, contractor-style layout) -->
+  <section id="admin-console" class="workflow-section" hidden style="margin-bottom:34px">
+    <div class="workflow-heading">
+      <div class="workflow-heading-copy">
+        <div class="workflow-kicker">Book by owner</div>
+        <h2 class="workflow-title">Console</h2>
+        <div class="workflow-description">Filter to yours, a specific Business Partner, or the whole book with owner breakdowns. Referral partners are handled separately in Partnerships below.</div>
+      </div>
+    </div>
+    <div class="owner-filter" id="admin-console-owner-filter" role="tablist" aria-label="Owner filter"></div>
+    <div class="summary-grid" style="margin-top:14px">
+      <div class="kpi-card">
+        <div class="kpi-label">Pipeline Recurring / Month</div>
+        <div class="kpi-value currency" id="console-pipeline-recurring">0</div>
+        <div class="kpi-sub">Forecastable Est. Value across the filtered book.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Pipeline One Time</div>
+        <div class="kpi-value currency" id="console-pipeline-onetime">0</div>
+        <div class="kpi-sub">Project Revenue on forecastable deals.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Active Recurring MRR</div>
+        <div class="kpi-value currency" id="console-won-recurring">0</div>
+        <div class="kpi-sub">MRR on active paying clients.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Won One Time</div>
+        <div class="kpi-value currency" id="console-won-onetime">0</div>
+        <div class="kpi-sub">Project Revenue on won deals.</div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:14px">
+      <div class="card">
+        <div class="card-title">Deals Won Over Time</div>
+        <div id="console-won-histogram"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pipeline Built Over Time</div>
+        <div id="console-pipeline-histogram"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-title">Prospects and Clients</div>
+      <div id="console-records"></div>
+    </div>
+  </section>
+
+  <!-- STANDARD ADMIN DASHBOARD (default view). Everything from the pre-existing
+       admin layout is wrapped so the Console toggle can hide it without
+       touching individual sections. -->
+  <div id="admin-standard">
   <div class="card intake-card">
     <div class="card-title">Build Your Pipeline</div>
     <div class="contractor-intro">Add prospects directly to the CRM. Every import is checked before anything is written and assigned to your authenticated account.</div>
@@ -2212,6 +2335,7 @@
     </div>
   </div>
   </div><!-- /collapse-body -->
+  </div><!-- /admin-standard -->
   </div><!-- /admin-dashboard -->
 
 </div>
@@ -4785,6 +4909,305 @@
   }
 
   renderContractorDashboard();
+  renderAdminConsole();
+
+  /* Admin Console: contractor-style layout that includes every owner's book,
+     with an owner filter and per-owner breakdowns in the histograms.
+     Non-admin viewers never reach this code path because #admin-dashboard
+     is hidden for them and adminBusinessPartners is admin-only. */
+  function renderAdminConsole() {
+    if (!isAdmin) return;
+    const consoleRoot = document.getElementById('admin-console');
+    if (!consoleRoot) return;
+
+    /* View toggle. Standard is the default so no existing behavior regresses;
+       Console is opt-in. Both live inside #admin-dashboard so the top-level
+       admin vs contractor toggle keeps working unchanged. */
+    const btnStandard = document.getElementById('admin-view-standard');
+    const btnConsole = document.getElementById('admin-view-console');
+    const standardRoot = document.getElementById('admin-standard');
+    function showConsole(showIt) {
+      consoleRoot.hidden = !showIt;
+      if (standardRoot) standardRoot.hidden = !!showIt;
+      btnConsole.classList.toggle('is-active', !!showIt);
+      btnConsole.setAttribute('aria-selected', showIt ? 'true' : 'false');
+      btnStandard.classList.toggle('is-active', !showIt);
+      btnStandard.setAttribute('aria-selected', showIt ? 'false' : 'true');
+    }
+    if (btnStandard && btnConsole) {
+      btnStandard.addEventListener('click', () => showConsole(false));
+      btnConsole.addEventListener('click', () => showConsole(true));
+    }
+
+    const businessPartners = (meta.business_partners || []).map((partner) => ({
+      email: String(partner.email || '').toLowerCase(),
+      name: partner.name || partner.email,
+    }));
+    const viewerEmail = String(viewer.email || '').toLowerCase();
+    const viewerName = viewer.name || 'You';
+
+    /* Owner options render in this order: You, then each Business Partner
+       alphabetically, then Unassigned only if at least one row has no owner. */
+    const ownerOptions = [
+      { key: viewerEmail, label: viewerName, kind: 'self' },
+      ...businessPartners
+        .filter((partner) => partner.email && partner.email !== viewerEmail)
+        .map((partner) => ({ key: partner.email, label: partner.name, kind: 'partner' })),
+    ];
+
+    const consoleRecords = records || [];
+    const hasUnassigned = consoleRecords.some((r) => !r.owner_email);
+    if (hasUnassigned) {
+      ownerOptions.push({ key: '__unassigned__', label: 'Unassigned', kind: 'unassigned' });
+    }
+    /* Any owner_email that is not in the known Business Partner list still
+       needs to be selectable so old assignments do not silently disappear. */
+    const knownKeys = new Set(ownerOptions.map((o) => o.key));
+    const unknownOwners = new Map();
+    consoleRecords.forEach((r) => {
+      const key = String(r.owner_email || '').toLowerCase();
+      if (!key) return;
+      if (knownKeys.has(key)) return;
+      if (!unknownOwners.has(key)) unknownOwners.set(key, { key, label: key, kind: 'unknown' });
+    });
+    unknownOwners.forEach((option) => ownerOptions.push(option));
+
+    /* Stable palette for stacked histograms. Slot 0 is always the viewer, so
+       Aaron's color never moves regardless of which partners exist. */
+    const palette = [
+      'var(--accent)',
+      '#8b5cf6',
+      '#f59e0b',
+      '#10b981',
+      '#ef4444',
+      '#0ea5e9',
+      '#ec4899',
+    ];
+    const ownerColor = new Map();
+    ownerOptions.forEach((option, i) => {
+      ownerColor.set(option.key, palette[i % palette.length]);
+    });
+
+    const filterRoot = document.getElementById('admin-console-owner-filter');
+    let currentOwner = 'all';
+
+    function chipsHtml() {
+      const totalCount = consoleRecords.length;
+      const perOwnerCount = new Map();
+      consoleRecords.forEach((r) => {
+        const key = String(r.owner_email || '').toLowerCase() || '__unassigned__';
+        perOwnerCount.set(key, (perOwnerCount.get(key) || 0) + 1);
+      });
+      const chip = (key, label, count) => {
+        const active = key === currentOwner ? ' is-active' : '';
+        return `<button type="button" class="owner-chip${active}" data-owner-key="${escAttr(key)}" role="tab">
+          <span>${esc(label)}</span>
+          <span class="owner-chip-count">${fmt(count || 0)}</span>
+        </button>`;
+      };
+      const chips = [chip('all', 'All', totalCount)];
+      ownerOptions.forEach((option) => {
+        chips.push(chip(option.key, option.label, perOwnerCount.get(option.key) || 0));
+      });
+      return chips.join('');
+    }
+
+    function filterRecords() {
+      if (currentOwner === 'all') return consoleRecords;
+      if (currentOwner === '__unassigned__') {
+        return consoleRecords.filter((r) => !r.owner_email);
+      }
+      return consoleRecords.filter((r) =>
+        String(r.owner_email || '').toLowerCase() === currentOwner
+      );
+    }
+
+    function ownerLabelFor(email) {
+      const key = String(email || '').toLowerCase();
+      if (!key) return 'Unassigned';
+      const option = ownerOptions.find((o) => o.key === key);
+      return option ? option.label : key;
+    }
+
+    function sumField(rows, field) {
+      return rows.reduce((acc, r) => acc + (Number(r[field]) || 0), 0);
+    }
+
+    /* Stacked-by-owner histogram. When only one owner is visible it collapses
+       to a plain bar chart so a single-owner filter reads the same as before. */
+    function stackedMonthlyHistogram(rows, dateField, monthsBack, caption) {
+      if (!rows.length) {
+        return `<div class="empty-state">No dated records yet.</div>
+          <div class="histogram-caption">${esc(caption || '')}</div>`;
+      }
+      const now = new Date();
+      const startYear = now.getUTCFullYear();
+      const startMonth = now.getUTCMonth();
+      const labels = [];
+      for (let i = monthsBack - 1; i >= 0; i--) {
+        const d = new Date(Date.UTC(startYear, startMonth - i, 1));
+        labels.push(d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }));
+      }
+
+      const visibleOwners = currentOwner === 'all'
+        ? ownerOptions.map((o) => o.key)
+        : [currentOwner];
+
+      /* buckets[monthIndex][ownerKey] = count */
+      const buckets = new Array(monthsBack).fill(0).map(() => new Map());
+      let totalCount = 0;
+      rows.forEach((r) => {
+        const raw = r[dateField];
+        if (!raw) return;
+        const dt = new Date(raw);
+        if (isNaN(dt.getTime())) return;
+        const monthsAgo = (startYear - dt.getUTCFullYear()) * 12 + (startMonth - dt.getUTCMonth());
+        if (monthsAgo < 0 || monthsAgo >= monthsBack) return;
+        const idx = monthsBack - 1 - monthsAgo;
+        const key = String(r.owner_email || '').toLowerCase() || '__unassigned__';
+        buckets[idx].set(key, (buckets[idx].get(key) || 0) + 1);
+        totalCount += 1;
+      });
+
+      if (totalCount === 0) {
+        return `<div class="empty-state">No dated records yet.</div>
+          <div class="histogram-caption">${esc(caption || '')}</div>`;
+      }
+
+      const monthTotals = buckets.map((bucket) => {
+        let sum = 0;
+        bucket.forEach((count) => { sum += count; });
+        return sum;
+      });
+      const max = Math.max(1, ...monthTotals);
+      const barW = 100 / monthsBack;
+
+      const bars = buckets.map((bucket, i) => {
+        const monthTotal = monthTotals[i];
+        if (monthTotal === 0) {
+          return `<g><rect x="${i * barW + barW * 0.15}" y="100" width="${barW * 0.7}" height="0" fill="var(--accent)" opacity="0.15"/></g>`;
+        }
+        const totalH = (monthTotal / max) * 100;
+        let y = 100 - totalH;
+        const segments = visibleOwners
+          .map((ownerKey) => ({ key: ownerKey, count: bucket.get(ownerKey) || 0 }))
+          .filter((seg) => seg.count > 0);
+        return '<g>' + segments.map((seg) => {
+          const segH = (seg.count / max) * 100;
+          const rect = `<rect x="${i * barW + barW * 0.15}" y="${y}" width="${barW * 0.7}" height="${segH}" fill="${ownerColor.get(seg.key) || 'var(--accent)'}" opacity="0.9"><title>${esc(labels[i])} · ${esc(ownerLabelFor(seg.key))}: ${seg.count}</title></rect>`;
+          y += segH;
+          return rect;
+        }).join('') + '</g>';
+      }).join('');
+
+      const tickLabels = labels.map((label, i) => {
+        const show = i === 0 || i === labels.length - 1 || i % 2 === 1;
+        return `<div class="histogram-tick" title="${esc(label)}">${show ? esc(label) : ''}</div>`;
+      }).join('');
+
+      const legend = currentOwner === 'all'
+        ? '<div class="histogram-legend">'
+          + ownerOptions.map((option) => `<span><span class="legend-dot" style="background:${ownerColor.get(option.key)}"></span>${esc(option.label)}</span>`).join('')
+          + '</div>'
+        : '';
+
+      return `<div class="histogram">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img"
+          aria-label="Monthly histogram, last ${monthsBack} months, total ${totalCount}">
+          ${bars}
+        </svg>
+        <div class="histogram-ticks" style="grid-template-columns:repeat(${monthsBack},1fr);">${tickLabels}</div>
+        <div class="histogram-caption">${esc(caption || '')} Total in window: ${fmt(totalCount)}.</div>
+        ${legend}
+      </div>`;
+    }
+
+    function consoleRecordCard(r) {
+      const quietTxt = (r.days_quiet === null || r.days_quiet === undefined)
+        ? 'No contact ever logged'
+        : (r.days_quiet === 0 ? 'Last contact today' : `Quiet ${r.days_quiet} days`);
+      const ownerLabel = ownerLabelFor(r.owner_email);
+      const pillClass = r.owner_email ? 'owner-pill' : 'owner-pill owner-pill-unassigned';
+      let f = '';
+      f += `<div><div class="rec-f-label">Owner</div><div class="rec-f-value"><span class="${pillClass}">${esc(ownerLabel)}</span></div></div>`;
+      f += field('Contact', r.contact);
+      f += field('Stage', r.stage);
+      f += field('Billing', r.billing_status);
+      f += field('Engagement Model', r.engagement_model);
+      f += field('Location', r.location);
+      f += contactField('Phone', r.phone, 'tel');
+      f += contactField('Email', r.email, 'mailto');
+      if (r.mrr) f += field('MRR', money(r.mrr));
+      if (r.est_monthly) f += field('Est. Value / Month', money(r.est_monthly));
+      if (r.project_revenue) f += field('Project Revenue', money(r.project_revenue));
+      f += field('Last Contact', r.last_contact);
+      f += field('Close Date', r.close_date);
+      let html = `<div class="rec">
+        <div class="rec-head">
+          <div class="rec-name">${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--text-secondary);">${esc(quietTxt)}</div>
+        </div>
+        <div class="rec-fields">${f}</div>`;
+      if (r.next_step) {
+        html += `<div class="rec-note"><div class="rec-note-label">Next Step</div>${esc(r.next_step)}</div>`;
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function paintTiles() {
+      const rows = filterRecords();
+      const forecastable = rows.filter((r) => r.is_forecastable);
+      const paying = rows.filter((r) => r.billing_status === 'Paid' && r.is_active);
+      const won = rows.filter((r) => r.billing_status === 'Paid');
+      document.getElementById('console-pipeline-recurring').textContent = fmtCurrency(sumField(forecastable, 'est_monthly'));
+      document.getElementById('console-pipeline-onetime').textContent = fmtCurrency(sumField(forecastable, 'project_revenue'));
+      document.getElementById('console-won-recurring').textContent = fmtCurrency(sumField(paying, 'mrr'));
+      document.getElementById('console-won-onetime').textContent = fmtCurrency(sumField(won, 'project_revenue'));
+    }
+
+    function paintHistograms() {
+      const rows = filterRecords();
+      const wonRows = rows.filter((r) => r.billing_status === 'Paid' && r.close_date);
+      document.getElementById('console-won-histogram').innerHTML =
+        stackedMonthlyHistogram(wonRows, 'close_date', 12, 'Deals won per month, last 12 months.');
+      document.getElementById('console-pipeline-histogram').innerHTML =
+        stackedMonthlyHistogram(rows, 'created', 12, 'Records added per month, last 12 months.');
+    }
+
+    function paintRecords() {
+      const rows = filterRecords();
+      const root = document.getElementById('console-records');
+      if (!rows.length) {
+        root.innerHTML = '<div class="empty-state">No records match the current owner filter.</div>';
+        return;
+      }
+      /* Cap the list so the page stays fast; drill-downs in the fat admin
+         dashboard below already handle exhaustive browsing. */
+      const shown = rows.slice(0, 60);
+      const suffix = rows.length > shown.length
+        ? `<div class="empty-search-hint">Showing 60 of ${rows.length} records. Use the sections below for the full view.</div>`
+        : '';
+      root.innerHTML = shown.map(consoleRecordCard).join('') + suffix;
+    }
+
+    function paintAll() {
+      filterRoot.innerHTML = chipsHtml();
+      filterRoot.querySelectorAll('.owner-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const key = chip.getAttribute('data-owner-key');
+          if (!key || key === currentOwner) return;
+          currentOwner = key;
+          paintAll();
+        });
+      });
+      paintTiles();
+      paintHistograms();
+      paintRecords();
+    }
+
+    paintAll();
+  }
 
   /* True when the Organization column carries no information beyond the
      Partner column, which happens when we do not yet know a human contact at
