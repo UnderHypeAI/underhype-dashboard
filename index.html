@@ -1701,6 +1701,73 @@
     margin-bottom: 22px;
     flex-wrap: wrap;
   }
+  /* Compact list rows used inside Console drill modals. Each row is a native
+     <details> element so the browser gives us free accessibility (aria-expanded,
+     keyboard support) and a native disclosure toggle. Summary is a dense
+     single-tap row; the full record body only renders when expanded. */
+  .comp-list { display: flex; flex-direction: column; gap: 6px; }
+  details.comp-row {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--card);
+    overflow: hidden;
+  }
+  details.comp-row[open] { border-color: var(--text-secondary); }
+  details.comp-row > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  details.comp-row > summary::-webkit-details-marker { display: none; }
+  .comp-caret {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    transition: transform 0.15s ease;
+    flex: none;
+  }
+  details.comp-row[open] .comp-caret { transform: rotate(90deg); }
+  .comp-main { min-width: 0; }
+  .comp-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .comp-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    margin-top: 3px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+  .comp-meta .owner-pill { text-transform: uppercase; }
+  .comp-quiet {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    text-align: right;
+  }
+  .comp-quiet.is-stale { color: var(--warning); }
+  .comp-body {
+    padding: 4px 12px 12px;
+    border-top: 1px dashed var(--card-border);
+  }
+  /* Reuse the .rec-* look inside the expanded body but drop the outer border
+     since the details element already carries it. */
+  .comp-body .rec {
+    padding: 4px 0 0;
+    border: none;
+    background: transparent;
+  }
   /* Clickable KPI card variant: makes the whole card a button but keeps the
      card look identical to a static kpi-card, so the row reads uniformly. */
   .kpi-card-clickable {
@@ -5308,6 +5375,48 @@
       return html;
     }
 
+    /* Right-pointing caret rendered inline so it works without an icon font. */
+    const COMP_CARET = '<svg class="comp-caret" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 3l5 5-5 5V3z"/></svg>';
+
+    function renderCompactList(rows, rowFn, emptyMsg) {
+      if (!rows.length) return `<div class="empty-state">${esc(emptyMsg || 'Nothing here yet.')}</div>`;
+      return `<div class="comp-list">${rows.map(rowFn).join('')}</div>`;
+    }
+
+    function quietChip(daysQuiet) {
+      if (daysQuiet === null || daysQuiet === undefined) {
+        return '<span class="comp-quiet">No contact yet</span>';
+      }
+      const stale = daysQuiet >= 14;
+      const txt = daysQuiet === 0 ? 'Today' : `${daysQuiet}d quiet`;
+      return `<span class="comp-quiet${stale ? ' is-stale' : ''}">${esc(txt)}</span>`;
+    }
+
+    /* Compact prospect row: name + stage + owner pill + quiet chip; expands to
+       reveal the existing full record card. */
+    function compactRecordRow(r) {
+      const ownerLabel = ownerLabelFor(r.owner_email);
+      const pillClass = r.owner_email ? 'owner-pill' : 'owner-pill owner-pill-unassigned';
+      const bits = [];
+      if (r.stage) bits.push(esc(r.stage));
+      bits.push(`<span class="${pillClass}">${esc(ownerLabel)}</span>`);
+      if (r.est_monthly) bits.push(`${esc(money(r.est_monthly))}/mo`);
+      else if (r.mrr) bits.push(`${esc(money(r.mrr))} MRR`);
+      else if (r.project_revenue) bits.push(esc(money(r.project_revenue)));
+      if (r.location) bits.push(esc(r.location));
+      return `<details class="comp-row">
+        <summary>
+          ${COMP_CARET}
+          <div class="comp-main">
+            <div class="comp-name">${esc(r.name || 'Unnamed prospect')}</div>
+            <div class="comp-meta">${bits.join('<span aria-hidden="true">·</span>')}</div>
+          </div>
+          ${quietChip(r.days_quiet)}
+        </summary>
+        <div class="comp-body">${consoleRecordCard(r)}</div>
+      </details>`;
+    }
+
     function paintTiles() {
       const rows = filterRecords();
       /* Pipeline tiles = forecastable, unpaid rows only, so Won money never
@@ -5358,7 +5467,7 @@
       });
       const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'prospect' : 'prospects'}`;
       openDrill(title, subtitle,
-        renderList(sorted, consoleRecordCard, 'No prospects in this bucket.'));
+        renderCompactList(sorted, compactRecordRow, 'No prospects in this bucket.'));
     }
 
     function paintHistograms() {
@@ -5473,7 +5582,7 @@
           });
           const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'deal' : 'deals'}`;
           openDrill(bucket.stage.label, subtitle,
-            renderList(sorted, consoleRecordCard, 'No deals in this stage.'));
+            renderCompactList(sorted, compactRecordRow, 'No deals in this stage.'));
         });
       });
     }
@@ -5580,9 +5689,33 @@
           });
           const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'partner' : 'partners'}`;
           openDrill(bucket.stage.label, subtitle,
-            renderList(sorted, consolePartnerCard, 'No partners in this stage.'));
+            renderCompactList(sorted, compactPartnerRow, 'No partners in this stage.'));
         });
       });
+    }
+
+    /* Compact partner row: same idea as compactRecordRow but with partner
+       fields, expanding to the existing consolePartnerCard body. */
+    function compactPartnerRow(p) {
+      const ownerLabel = ownerLabelFor(p.owner_email);
+      const pillClass = p.owner_email ? 'owner-pill' : 'owner-pill owner-pill-unassigned';
+      const bits = [];
+      if (p.stage) bits.push(esc(p.stage));
+      bits.push(`<span class="${pillClass}">${esc(ownerLabel)}</span>`);
+      if (p.type) bits.push(esc(p.type));
+      if (p.clients_generated) bits.push(`${fmt(p.clients_generated)} clients sourced`);
+      const displayName = p.organization || p.partner || 'Unnamed partner';
+      return `<details class="comp-row">
+        <summary>
+          ${COMP_CARET}
+          <div class="comp-main">
+            <div class="comp-name">${esc(displayName)}</div>
+            <div class="comp-meta">${bits.join('<span aria-hidden="true">·</span>')}</div>
+          </div>
+          ${quietChip(p.days_quiet)}
+        </summary>
+        <div class="comp-body">${consolePartnerCard(p)}</div>
+      </details>`;
     }
 
     function consolePartnerCard(p) {
