@@ -1701,6 +1701,22 @@
     margin-bottom: 22px;
     flex-wrap: wrap;
   }
+  /* Clickable KPI card variant: makes the whole card a button but keeps the
+     card look identical to a static kpi-card, so the row reads uniformly. */
+  .kpi-card-clickable {
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .kpi-card-clickable:hover { border-color: var(--text-secondary); }
+  .kpi-card-clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .kpi-card-clickable:active { transform: translateY(1px); }
   /* Horizontal funnel: each stage is a clickable row with a proportional bar.
      Reads at a glance and doubles as the drill-in target. */
   .funnel-row {
@@ -1956,7 +1972,24 @@
       </div>
     </div>
     <div class="owner-filter" id="admin-console-owner-filter" role="tablist" aria-label="Owner filter"></div>
-    <div class="empty-search-hint" style="padding:8px 0 0;">Pipeline = rows that have expressed interest. Cold Leads and Outreach stages are not counted here.</div>
+    <div class="empty-search-hint" style="padding:8px 0 0;">Pipeline = rows that have expressed interest. Cold Leads and Outreach are shown separately below.</div>
+    <div class="summary-grid" style="margin-top:14px">
+      <button type="button" class="kpi-card kpi-card-clickable" id="console-coverage-total" data-drill="all">
+        <div class="kpi-label">Total Prospects</div>
+        <div class="kpi-value" id="console-coverage-total-count">0</div>
+        <div class="kpi-sub">Every prospect in the CRM for this filter. Tap to open the list.</div>
+      </button>
+      <button type="button" class="kpi-card kpi-card-clickable" id="console-coverage-leads" data-drill="Lead">
+        <div class="kpi-label">Cold Leads</div>
+        <div class="kpi-value" id="console-coverage-leads-count">0</div>
+        <div class="kpi-sub">Stage = Lead. Not yet validated as opportunities.</div>
+      </button>
+      <button type="button" class="kpi-card kpi-card-clickable" id="console-coverage-outreach" data-drill="Outreach">
+        <div class="kpi-label">In Outreach</div>
+        <div class="kpi-value" id="console-coverage-outreach-count">0</div>
+        <div class="kpi-sub">Stage = Outreach. Contacted but no reply yet.</div>
+      </button>
+    </div>
     <div class="summary-grid" style="margin-top:14px">
       <div class="kpi-card">
         <div class="kpi-label">Pipeline Recurring / Month</div>
@@ -5119,15 +5152,21 @@
       return rows.filter((r) => r.is_forecastable || r.billing_status === 'Paid');
     }
 
+    /* Owner-scoped rows WITHOUT the forecastable filter. Used for the CRM
+       coverage tiles (Total, Leads, Outreach) that intentionally include the
+       cold end of the pipeline. */
+    function scopedRecords() {
+      if (currentOwner === 'all') return consoleRecords;
+      if (currentOwner === '__unassigned__') {
+        return consoleRecords.filter((r) => !r.owner_email);
+      }
+      return consoleRecords.filter((r) =>
+        String(r.owner_email || '').toLowerCase() === currentOwner
+      );
+    }
+
     function filterRecords() {
-      const scoped = currentOwner === 'all'
-        ? consoleRecords
-        : currentOwner === '__unassigned__'
-          ? consoleRecords.filter((r) => !r.owner_email)
-          : consoleRecords.filter((r) =>
-              String(r.owner_email || '').toLowerCase() === currentOwner
-            );
-      return pipelineRows(scoped);
+      return pipelineRows(scopedRecords());
     }
 
     function ownerLabelFor(email) {
@@ -5280,6 +5319,46 @@
       document.getElementById('console-pipeline-onetime').textContent = fmtCurrency(sumField(openPipeline, 'project_revenue'));
       document.getElementById('console-won-recurring').textContent = fmtCurrency(sumField(paying, 'mrr'));
       document.getElementById('console-won-onetime').textContent = fmtCurrency(sumField(won, 'project_revenue'));
+    }
+
+    /* Coverage tiles: every prospect in the CRM for this filter, plus the two
+       cold stages. Click any tile to open a list-view drill. */
+    function paintCoverageTiles() {
+      const all = scopedRecords();
+      const leads = all.filter((r) => r.stage === 'Lead');
+      const outreach = all.filter((r) => r.stage === 'Outreach');
+      document.getElementById('console-coverage-total-count').textContent = fmt(all.length);
+      document.getElementById('console-coverage-leads-count').textContent = fmt(leads.length);
+      document.getElementById('console-coverage-outreach-count').textContent = fmt(outreach.length);
+    }
+
+    function openCoverageDrill(kind) {
+      const all = scopedRecords();
+      let rows, title;
+      if (kind === 'Lead') {
+        rows = all.filter((r) => r.stage === 'Lead');
+        title = 'Cold Leads';
+      } else if (kind === 'Outreach') {
+        rows = all.filter((r) => r.stage === 'Outreach');
+        title = 'In Outreach';
+      } else {
+        rows = all.slice();
+        title = 'All Prospects';
+      }
+      const ownerLabel = currentOwner === 'all' ? 'All owners' : ownerLabelFor(currentOwner);
+      /* Sort: newest last-contact first (most recent activity on top), then
+         by created date so brand-new rows without contact still surface. */
+      const sorted = rows.slice().sort((a, b) => {
+        const aq = a.days_quiet == null ? Infinity : a.days_quiet;
+        const bq = b.days_quiet == null ? Infinity : b.days_quiet;
+        if (aq !== bq) return aq - bq;
+        const ac = a.created || '';
+        const bc = b.created || '';
+        return bc.localeCompare(ac);
+      });
+      const subtitle = `${ownerLabel} · ${sorted.length} ${sorted.length === 1 ? 'prospect' : 'prospects'}`;
+      openDrill(title, subtitle,
+        renderList(sorted, consoleRecordCard, 'No prospects in this bucket.'));
     }
 
     function paintHistograms() {
@@ -5553,12 +5632,23 @@
           paintAll();
         });
       });
+      paintCoverageTiles();
       paintTiles();
       paintHistograms();
       paintRecords();
       paintPartnerTiles();
       paintPartnerFunnel();
     }
+
+    /* Coverage tile clicks. Bound once because the tile DOM is static. */
+    ['console-coverage-total', 'console-coverage-leads', 'console-coverage-outreach']
+      .forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', () => {
+          openCoverageDrill(el.getAttribute('data-drill'));
+        });
+      });
 
     paintAll();
   }
