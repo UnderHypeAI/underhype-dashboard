@@ -2820,7 +2820,11 @@
         }
         throw new Error(problem.message || 'Refresh failed.');
       }
-      window.location.reload();
+      // GitHub Pages caches HTML for ten minutes. Request a fresh document
+      // after refreshing data so an open console also picks up UI releases.
+      const freshPage = new URL(window.location.href);
+      freshPage.searchParams.set('_ui', Date.now().toString());
+      window.location.replace(freshPage.href);
     } catch (error) {
       document.getElementById('sync-time').textContent = error.message || 'Refresh failed';
       refreshButton.disabled = false;
